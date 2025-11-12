@@ -4,6 +4,7 @@ import {
 	MODE_INDICATOR_BYTE,
 	V1L_DATA_CODEWORDS,
 	TOTAL_BITS_V1L,
+	V1L_BYTE_MODE_CAPACITY,
 } from "../constants/v1l";
 import { encodeByteModePayload } from "./byte-mode";
 
@@ -27,6 +28,11 @@ export const makeV1LDataCodewords = (
 	input: string,
 	_opts?: QROptions,
 ): number[] => {
+	if (input.length > V1L_BYTE_MODE_CAPACITY) {
+		throw new RangeError(
+			`V1-L byte mode supports at most ${V1L_BYTE_MODE_CAPACITY} bytes, received ${input.length}`,
+		);
+	}
 	const bits: number[] = [];
 
 	// 1) mode (0100)

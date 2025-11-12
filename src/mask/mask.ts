@@ -86,7 +86,6 @@ export const applyMask = (m: QrMatrix, maskId: MaskId): QrMatrix => {
 		newValues[r] = row;
 	}
 
-	// Preserve reserved map by reference (it’s read-only in our usage), or shallow-clone if you prefer immutability.
 	return {
 		size: m.size,
 		values: newValues,

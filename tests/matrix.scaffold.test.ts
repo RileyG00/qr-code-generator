@@ -1,6 +1,16 @@
 import { describe, test, expect } from "vitest";
 import { buildScaffoldV1 } from "../src/matrix/build";
 
+const FINDER_TEMPLATE: (0 | 1)[][] = [
+	[1, 1, 1, 1, 1, 1, 1],
+	[1, 0, 0, 0, 0, 0, 1],
+	[1, 0, 1, 1, 1, 0, 1],
+	[1, 0, 1, 1, 1, 0, 1],
+	[1, 0, 1, 1, 1, 0, 1],
+	[1, 0, 0, 0, 0, 0, 1],
+	[1, 1, 1, 1, 1, 1, 1],
+];
+
 describe("V1 scaffold (function patterns only)", () => {
 	test("matrix is 21x21 and mostly null before data placement", () => {
 		const m = buildScaffoldV1();
@@ -62,6 +72,25 @@ describe("V1 scaffold (function patterns only)", () => {
 		assertFinder(21 - 7, 0); // bottom-left
 	});
 
+	test("finder bodies match the 7x7 template and are all reserved", () => {
+		const m = buildScaffoldV1();
+		const coords: Array<[number, number]> = [
+			[0, 0],
+			[0, 21 - 7],
+			[21 - 7, 0],
+		];
+		for (const [top, left] of coords) {
+			for (let r = 0; r < 7; r++) {
+				for (let c = 0; c < 7; c++) {
+					expect(m.values[top + r][left + c]).toBe(
+						FINDER_TEMPLATE[r][c],
+					);
+					expect(m.reserved[top + r][left + c]).toBe(true);
+				}
+			}
+		}
+	});
+
 	test("timing patterns alternate along row 6 and column 6 where not covered", () => {
 		const m = buildScaffoldV1();
 
@@ -80,6 +109,28 @@ describe("V1 scaffold (function patterns only)", () => {
 			expect(m.reserved[r][6]).toBe(true);
 			expect(m.values[r][6]).toBe(expected);
 		}
+	});
+
+	test("timing placement does not overwrite finder or separator reservations", () => {
+		const m = buildScaffoldV1();
+
+		// Row 6 just outside the top-left finder should remain white separator
+		expect(m.values[6][7]).toBe(0);
+		expect(m.reserved[6][7]).toBe(true);
+
+		// First actual timing bit to the right of the separator should be dark (col 8, even)
+		expect(m.values[6][8]).toBe(1);
+		expect(m.reserved[6][8]).toBe(true);
+
+		// Approaching the top-right finder, separator column (col 13) stays white
+		expect(m.values[6][13]).toBe(0);
+		expect(m.reserved[6][13]).toBe(true);
+
+		// Column 6 below the top-left finder should mirror the same behavior
+		expect(m.values[7][6]).toBe(0); // separator row
+		expect(m.reserved[7][6]).toBe(true);
+		expect(m.values[8][6]).toBe(1); // first vertical timing after separator (row 8 even)
+		expect(m.reserved[8][6]).toBe(true);
 	});
 
 	test("dark module at (13,8) is set black and reserved", () => {
@@ -114,6 +165,19 @@ describe("V1 scaffold (function patterns only)", () => {
 		for (let r = n - 7; r < n; r++) {
 			expect(m.reserved[r][8]).toBe(true);
 			expect(m.values[r][8]).toBeNull();
+		}
+	});
+
+	test("regular data modules remain unreserved and null prior to data placement", () => {
+		const m = buildScaffoldV1();
+		const samples: Array<[number, number]> = [
+			[10, 10],
+			[12, 15],
+			[15, 12],
+		];
+		for (const [r, c] of samples) {
+			expect(m.reserved[r][c]).toBe(false);
+			expect(m.values[r][c]).toBeNull();
 		}
 	});
 });
