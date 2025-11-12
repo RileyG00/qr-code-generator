@@ -1,5 +1,5 @@
-import type { QrMatrix, MaskId } from "./mask";
 import { applyMask } from "./mask";
+import type { MaskId, QrMatrix } from "./types";
 
 /** Ensure matrix is fully populated with 0/1 (no nulls). */
 const ensureBinary = (
@@ -159,16 +159,25 @@ export const scoreRule4 = (
 	return 10 * Math.floor(diff / 5);
 };
 
+export interface ChooseBestMaskOptions {
+	decorateCandidate?: (matrix: QrMatrix, maskId: MaskId) => void;
+}
+
 /** Try all masks, return the lowest-penalty result. */
 export const chooseBestMask = (
 	m: QrMatrix,
+	opts?: ChooseBestMaskOptions,
 ): { maskId: MaskId; matrix: QrMatrix; score: number } => {
+	const decorate = opts?.decorateCandidate;
+
 	let bestId: MaskId = 0;
 	let bestMatrix: QrMatrix = applyMask(m, 0);
+	decorate?.(bestMatrix, bestId);
 	let bestScore = scoreMatrix(bestMatrix);
 
 	for (let id = 1 as MaskId; id <= 7; id = (id + 1) as MaskId) {
 		const masked = applyMask(m, id);
+		decorate?.(masked, id);
 		const s = scoreMatrix(masked);
 		if (s < bestScore) {
 			bestScore = s;

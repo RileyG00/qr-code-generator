@@ -350,6 +350,22 @@ test("chooseBestMask is deterministic for the same input", () => {
 	expect(a.score).toBe(b.score);
 });
 
+test("chooseBestMask decorator runs before scoring for every mask", () => {
+	const base = mk(
+		Array.from({ length: 21 }, (_, r) =>
+			Array.from({ length: 21 }, (_, c) => ((r + c) % 2) as 0 | 1),
+		),
+	);
+	const seen = new Set<number>();
+	chooseBestMask(base, {
+		decorateCandidate: (_matrix, id) => {
+			seen.add(id);
+		},
+	});
+	expect(seen.size).toBe(8);
+	for (let id = 0; id <= 7; id++) expect(seen.has(id)).toBe(true);
+});
+
 // ---------------------------------------------------------------------------
 // Robustness: ensureBinary guard (nulls should throw when scoring)
 // ---------------------------------------------------------------------------
