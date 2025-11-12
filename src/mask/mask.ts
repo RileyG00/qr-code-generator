@@ -1,15 +1,7 @@
 // Step 5A — Mask predicates + applyMask(matrix, maskId)
 // Coordinates are zero-based: r = row (0..size-1), c = column (0..size-1)
 
-export type MaskId = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
-
-export type QrMatrix = {
-	size: number;
-	// 0 = light, 1 = dark, null = unset (should not be present by masking time, but we guard anyway)
-	values: Array<Array<0 | 1 | null>>;
-	// true means "reserved" (finder/timing/format/version/alignment separators, etc.) — never modified by masking
-	reserved: Array<Array<boolean>>;
-};
+import type { MaskId, QrMatrix } from "./types";
 
 /** ISO/IEC 18004 mask predicates (r,c are zero-based). */
 export const maskPredicate = (
@@ -76,7 +68,7 @@ export const applyMask = (m: QrMatrix, maskId: MaskId): QrMatrix => {
 			}
 
 			// Only data cells get toggled when predicate is true.
-			// If v is null (shouldn’t happen at mask time), just copy it to be safe.
+			// If v is null (shouldn't happen at mask time), just copy it to be safe.
 			if (v === 0 || v === 1) {
 				row[c] = pred(r, c) ? ((v ^ 1) as 0 | 1) : v;
 			} else {
@@ -96,3 +88,5 @@ export const applyMask = (m: QrMatrix, maskId: MaskId): QrMatrix => {
 /** Convenience helper — true if cell is a data module (i.e., not reserved). */
 export const isDataCell = (m: QrMatrix, r: number, c: number): boolean =>
 	!m.reserved[r][c];
+
+export type { MaskId, QrMatrix } from "./types";
