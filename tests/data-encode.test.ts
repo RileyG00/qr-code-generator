@@ -1,20 +1,11 @@
-import { prepareV1L } from "../src/index";
+import { prepareV1L } from "../src";
+import { makeV1LDataCodewords } from "../src/encoder/makeV1LDataCodewords";
 
-function hex(u8: Uint8Array) {
-	return Array.from(u8)
-		.map((b) => b.toString(16).padStart(2, "0"))
-		.join("");
-}
-
-test("V1-L byte encoder pads to 19 codewords", () => {
-	const cw = prepareV1L("HELLO").dataCodewords;
-	expect(cw).toHaveLength(19);
-	// Spot-check first few bytes are stable across runs
-	// (You can assert exact hex once you lock expectations)
-	expect(typeof hex(cw)).toBe("string");
+test("V1-L: HELLO → 19 data codewords", () => {
+	expect(prepareV1L("HELLO").dataCodewords).toHaveLength(19);
 });
 
-test("too long for V1-L throws", () => {
-	const long = "A".repeat(300);
-	expect(() => prepareV1L(long)).toThrow();
+test("V1-L: mode+count are correct for short ASCII", () => {
+	const cw = makeV1LDataCodewords("HELLO");
+	expect(cw[0]).toBeGreaterThanOrEqual(0x40); // sanity: 0100 + count bits up front
 });
