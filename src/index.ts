@@ -69,3 +69,5 @@ export const buildV1LMatrix = (
 
 	return { matrix, maskId, formatBits, score };
 };
+
+export { renderSvg, type SvgRenderOptions } from "./render/svg";
