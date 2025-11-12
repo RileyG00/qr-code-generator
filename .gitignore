@@ -28,4 +28,4 @@ Thumbs.db
 *.log
 *.tmp
 .env
-dev.ts
+/dev/*.svg
