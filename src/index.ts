@@ -1,5 +1,4 @@
-import { makeV1LDataCodewords } from "./encoder/makeV1LDataCodewords";
-import { makeV1LEcc } from "./encoder/makeV1LEcc";
+import { prepareCodewords as prepareGenericCodewords } from "./encoder";
 import { QROptions, QRCodewords } from "./types";
 import { V1_SIZE } from "./constants/v1l";
 import { buildMatrixV1L_Unmasked } from "./matrix/v1l";
@@ -8,19 +7,10 @@ import { makeFormatInfoBits, writeFormatInfo } from "./matrix/format";
 import { writeVersionInfo } from "./matrix/version";
 import type { MaskId, QrMatrix } from "./mask/types";
 
-export const prepareV1L = (input: string, _opts?: QROptions): QRCodewords => {
-	const dataCodewords = makeV1LDataCodewords(input, _opts);
-	const eccCodewords = Array.from(makeV1LEcc(dataCodewords));
-	const allCodewords = [...dataCodewords, ...eccCodewords];
+export const prepareCodewords = prepareGenericCodewords;
 
-	return {
-		version: 1,
-		ecc: "L",
-		dataCodewords,
-		eccCodewords,
-		allCodewords,
-	};
-};
+export const prepareV1L = (input: string, _opts?: QROptions): QRCodewords =>
+	prepareCodewords(input, { version: 1, ecc: "L" });
 
 export const prepareV1LWithEcc = (
 	input: string,
@@ -30,7 +20,7 @@ export const prepareV1LWithEcc = (
 	return {
 		...prepared,
 		totalCodewords:
-			prepared.allCodewords?.length ??
+			prepared.interleavedCodewords.length ??
 			prepared.dataCodewords.length + prepared.eccCodewords.length,
 	};
 };
@@ -50,8 +40,11 @@ export const buildV1LMatrix = (
 ): QRMatrixBuildResult => {
 	const prepared = prepareV1L(input, _opts);
 	const all =
-		prepared.allCodewords ??
-		[...prepared.dataCodewords, ...prepared.eccCodewords];
+		prepared.interleavedCodewords ??
+		Uint8Array.from([
+			...prepared.dataCodewords,
+			...prepared.eccCodewords,
+		]);
 	const baseMatrix = buildMatrixV1L_Unmasked(Uint8Array.from(all));
 	writeVersionInfo(baseMatrix, prepared.version);
 
@@ -67,7 +60,7 @@ export const buildV1LMatrix = (
 	const formatBits = makeFormatInfoBits(prepared.ecc, maskId);
 	writeFormatInfo(matrix, formatBits);
 
-	return { matrix, maskId, formatBits, score };
+return { matrix, maskId, formatBits, score };
 };
 
 export { renderSvg, type SvgRenderOptions } from "./render/svg";

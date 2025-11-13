@@ -1,6 +1,8 @@
 import { describe, expect, test } from "vitest";
-import { prepareV1L } from "../src";
-import { makeV1LDataCodewords } from "../src/encoder/makeV1LDataCodewords";
+import { prepareCodewords, prepareV1L } from "../src";
+import { encodeUtf8 } from "../src/encoder/byte-mode";
+import { makeDataCodewords } from "../src/encoder/data-codewords";
+import { getVersionCapacity } from "../src/metadata/capacity";
 
 // Small helpers used by several tests
 const getModeNibble = (firstByte: number) => (firstByte >>> 4) & 0x0f;
@@ -25,6 +27,13 @@ const isByteBuffer = (x: unknown): x is number[] | Uint8Array =>
 	x instanceof Uint8Array ||
 	(Array.isArray(x) &&
 		x.every((v) => Number.isInteger(v) && v >= 0 && v <= 255));
+
+const encodeV1LData = (text: string): number[] => {
+	const versionInfo = getVersionCapacity(1);
+	return Array.from(
+		makeDataCodewords(encodeUtf8(text), versionInfo, "L"),
+	);
+};
 
 describe("V1-L byte-mode data codewords", () => {
 	test("V1-L: HELLO → 19 data codewords (exact bytes, incl. pad pattern)", () => {
@@ -54,13 +63,13 @@ describe("V1-L byte-mode data codewords", () => {
 			0x11, // pads to 19
 		];
 
-		const actual = makeV1LDataCodewords("HELLO");
+		const actual = encodeV1LData("HELLO");
 		expect(actual).toHaveLength(19);
 		expect(actual).toEqual(expectedHELLO);
 	});
 
 	test("V1-L: mode+count are correct for short ASCII (HELLO)", () => {
-		const cw = makeV1LDataCodewords("HELLO");
+		const cw = encodeV1LData("HELLO");
 		// Mode nibble should be 0100
 		expect(getModeNibble(cw[0])).toBe(0x4);
 		// Count should be 5
@@ -68,7 +77,7 @@ describe("V1-L byte-mode data codewords", () => {
 	});
 
 	test("V1-L: pad bytes alternate 0xEC, 0x11 for messages that need padding", () => {
-		const cw = makeV1LDataCodewords("HELLO"); // needs padding
+		const cw = encodeV1LData("HELLO"); // needs padding
 		// First 7 bytes are header+data+terminator-alignment; pads start at index 7
 		for (let i = 7; i < cw.length; i++) {
 			const expected = (i - 7) % 2 === 0 ? 0xec : 0x11;
@@ -78,7 +87,7 @@ describe("V1-L byte-mode data codewords", () => {
 
 	test("V1-L: capacity boundary — 17 bytes should fit exactly (no pads expected)", () => {
 		const seventeenA = "A".repeat(17); // Byte-mode capacity for V1-L
-		const cw = makeV1LDataCodewords(seventeenA);
+		const cw = encodeV1LData(seventeenA);
 		expect(cw).toHaveLength(19);
 
 		// Mode nibble = 0100, count = 17
@@ -98,7 +107,7 @@ describe("V1-L byte-mode data codewords", () => {
 
 	test("V1-L: over-capacity (>= 18 bytes) should throw", () => {
 		const eighteenA = "A".repeat(18);
-		expect(() => makeV1LDataCodewords(eighteenA)).toThrow();
+		expect(() => encodeV1LData(eighteenA)).toThrow();
 	});
 });
 
@@ -124,7 +133,20 @@ describe("prepareV1L end-to-end assembly", () => {
 
 	test("prepareV1L(HELLO) dataCodewords match the encoder output exactly", () => {
 		const fromPrepare = prepareV1L("HELLO").dataCodewords;
-		const fromEncoder = makeV1LDataCodewords("HELLO");
-		expect(fromPrepare).toEqual(fromEncoder);
+		const fromEncoder = encodeV1LData("HELLO");
+		expect(Array.from(fromPrepare)).toEqual(fromEncoder);
+	});
+
+	test("prepareCodewords auto-selects larger version for long payloads", () => {
+		const payload = "X".repeat(200);
+		const result = prepareCodewords(payload);
+		expect(result.version).toBeGreaterThan(1);
+		expect(result.dataCodewords.length).toBe(
+			getVersionCapacity(result.version).levels[result.ecc].dataCodewords,
+		);
+		expect(result.eccCodewords.length).toBeGreaterThan(0);
+		expect(result.interleavedCodewords.length).toBe(
+			result.dataCodewords.length + result.eccCodewords.length,
+		);
 	});
 });

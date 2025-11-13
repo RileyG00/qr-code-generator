@@ -1,46 +1,4 @@
-import type { EccLevel } from "../types";
-
-export type VersionNumber =
-	| 1
-	| 2
-	| 3
-	| 4
-	| 5
-	| 6
-	| 7
-	| 8
-	| 9
-	| 10
-	| 11
-	| 12
-	| 13
-	| 14
-	| 15
-	| 16
-	| 17
-	| 18
-	| 19
-	| 20
-	| 21
-	| 22
-	| 23
-	| 24
-	| 25
-	| 26
-	| 27
-	| 28
-	| 29
-	| 30
-	| 31
-	| 32
-	| 33
-	| 34
-	| 35
-	| 36
-	| 37
-	| 38
-	| 39
-	| 40;
+import type { EccLevel, VersionNumber } from "../types";
 
 export interface EccBlockCapacity {
 	dataCodewords: number;
@@ -176,12 +134,47 @@ export const VERSION_CAPACITIES: readonly VersionCapacity[] = Array.from({ lengt
 
 const MODE_INDICATOR_BITS = 4;
 
-const getCharCountBitSize = (version: number): number => (version <= 9 ? 8 : 16);
+export const getVersionCapacity = (version: VersionNumber): VersionCapacity => {
+	const entry = VERSION_CAPACITIES[version - 1];
+	if (!entry) {
+		throw new RangeError(`Unsupported QR version ${version}.`);
+	}
+	return entry;
+};
 
-const doesCharCountFieldFit = (bytes: number, version: VersionNumber): boolean => {
-	const charBits = getCharCountBitSize(version);
-	const maxChars = (1 << charBits) - 1;
-	return bytes <= maxChars;
+export const getByteModeCharCountBits = (version: VersionNumber): number =>
+	version <= 9 ? 8 : 16;
+
+export const getByteModeCharCountLimit = (version: VersionNumber): number =>
+	(1 << getByteModeCharCountBits(version)) - 1;
+
+export const canFitByteModePayload = (
+	byteLength: number,
+	versionInfo: VersionCapacity,
+	ecc: EccLevel,
+): boolean => {
+	if (byteLength > getByteModeCharCountLimit(versionInfo.version)) {
+		return false;
+	}
+
+	const capacityBits = versionInfo.levels[ecc].dataCodewords * 8;
+	let bitsUsed =
+		MODE_INDICATOR_BITS +
+		getByteModeCharCountBits(versionInfo.version) +
+		byteLength * 8;
+
+	if (bitsUsed > capacityBits) {
+		return false;
+	}
+
+	const remainingAfterHeader = capacityBits - bitsUsed;
+	const terminatorBits = Math.min(4, Math.max(0, remainingAfterHeader));
+	bitsUsed += terminatorBits;
+
+	const remainder = bitsUsed % 8;
+	if (remainder !== 0) bitsUsed += 8 - remainder;
+
+	return bitsUsed <= capacityBits;
 };
 
 export const selectVersionAndEcc = (
@@ -195,32 +188,15 @@ export const selectVersionAndEcc = (
 		throw new Error("inputBitLength must be non-negative.");
 	}
 
-	const requiredBytes = Math.ceil(inputBitLength / 8);
+	if (inputBitLength % 8 !== 0) {
+		throw new Error("byte mode inputBitLength must be a multiple of 8.");
+	}
+
+	const requiredBytes = inputBitLength / 8;
 
 	for (const versionInfo of VERSION_CAPACITIES) {
-		if (!doesCharCountFieldFit(requiredBytes, versionInfo.version)) {
-			continue;
-		}
-
-		const charCountBits = getCharCountBitSize(versionInfo.version);
-		const headerBits = MODE_INDICATOR_BITS + charCountBits + inputBitLength;
-
 		for (const ecc of ECC_LEVELS) {
-			const capacityBits = versionInfo.levels[ecc].dataCodewords * 8;
-			if (headerBits > capacityBits) {
-				continue;
-			}
-
-			const remainingAfterHeader = capacityBits - headerBits;
-			const terminatorBits = Math.min(4, Math.max(0, remainingAfterHeader));
-			let bitsUsed = headerBits + terminatorBits;
-
-			const remainder = bitsUsed % 8;
-			if (remainder !== 0) {
-				bitsUsed += 8 - remainder;
-			}
-
-			if (bitsUsed <= capacityBits) {
+			if (canFitByteModePayload(requiredBytes, versionInfo, ecc)) {
 				return { version: versionInfo.version, ecc };
 			}
 		}
