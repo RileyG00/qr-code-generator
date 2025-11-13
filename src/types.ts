@@ -1,23 +1,75 @@
+export type VersionNumber =
+	| 1
+	| 2
+	| 3
+	| 4
+	| 5
+	| 6
+	| 7
+	| 8
+	| 9
+	| 10
+	| 11
+	| 12
+	| 13
+	| 14
+	| 15
+	| 16
+	| 17
+	| 18
+	| 19
+	| 20
+	| 21
+	| 22
+	| 23
+	| 24
+	| 25
+	| 26
+	| 27
+	| 28
+	| 29
+	| 30
+	| 31
+	| 32
+	| 33
+	| 34
+	| 35
+	| 36
+	| 37
+	| 38
+	| 39
+	| 40;
+
 export type EccLevel = "L" | "M" | "Q" | "H";
 
 export interface QROptions {
-	version?: 1;
+	version?: VersionNumber;
 	ecc?: EccLevel;
+	mode?: "byte";
+	minVersion?: VersionNumber;
+	maxVersion?: VersionNumber;
 }
 
 export type ByteBuffer = number[] | Uint8Array;
 
+export interface CodewordBlock {
+	data: Uint8Array;
+	ecc: Uint8Array;
+}
+
 export interface QRCodewords {
-	version: 1;
-	ecc: "L";
-	// Data codewords after mode/length/data/terminator/zero pad/0xEC,0x11 pads
-	dataCodewords: ByteBuffer; // length = 19 for V1-L
-
-	// NEW: Reed-Solomon parity bytes for V1-L (single block, 7 bytes)
-	eccCodewords: ByteBuffer; // length = 7 for V1-L
-
-	// OPTIONAL: convenience if you ever want to hand back data+ecc together
-	allCodewords?: ByteBuffer; // length = 26 for V1-L
+	version: VersionNumber;
+	ecc: EccLevel;
+	mode: "byte";
+	dataCodewords: Uint8Array;
+	eccCodewords: Uint8Array;
+	interleavedCodewords: Uint8Array;
+	blocks: readonly CodewordBlock[];
+	/**
+	 * Optional alias for legacy consumers that expect data+ecc as a single array.
+	 * Mirrors `interleavedCodewords`.
+	 */
+	allCodewords?: ByteBuffer;
 }
 
 export interface QRMatrix {

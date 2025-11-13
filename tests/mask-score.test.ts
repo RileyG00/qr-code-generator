@@ -1,12 +1,12 @@
-import { applyMask, type QrMatrix } from "../src/mask/mask";
+import { applyMask, type QrMatrix } from "../src/mask/apply";
 import {
 	scoreRule1,
 	scoreRule2,
 	scoreRule3,
 	scoreRule4,
 	scoreMatrix,
-	chooseBestMask,
-} from "../src/mask/mask-score";
+} from "../src/mask/score";
+import { chooseBestMask } from "../src/mask";
 
 /** Helpers */
 const mk = (values: number[][]): QrMatrix => {
@@ -357,7 +357,7 @@ test("chooseBestMask decorator runs before scoring for every mask", () => {
 		),
 	);
 	const seen = new Set<number>();
-	chooseBestMask(base, {
+	chooseBestMask(base, undefined, {
 		decorateCandidate: (_matrix, id) => {
 			seen.add(id);
 		},

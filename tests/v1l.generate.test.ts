@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { buildV1LMatrix } from "../src";
-import { makeFormatInfoBits } from "../src/matrix/format";
+import { makeFormatInfoBits } from "../src/mask/format-info";
 
 const formatPositionsLeft: Array<[number, number]> = [
 	[8, 0],

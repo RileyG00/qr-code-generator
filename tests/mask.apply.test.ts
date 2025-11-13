@@ -3,7 +3,7 @@ import {
 	maskPredicate,
 	type MaskId,
 	type QrMatrix,
-} from "../src/mask/mask";
+} from "../src/mask/apply";
 
 const makeMatrix = (size: number, fill: 0 | 1): QrMatrix => {
 	const values = Array.from({ length: size }, () =>

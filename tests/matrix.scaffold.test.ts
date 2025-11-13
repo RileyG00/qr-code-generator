@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { buildScaffoldV1 } from "../src/matrix/build";
+import { buildMatrixScaffold } from "../src/matrix";
 
 const FINDER_TEMPLATE: (0 | 1)[][] = [
 	[1, 1, 1, 1, 1, 1, 1],
@@ -13,7 +13,7 @@ const FINDER_TEMPLATE: (0 | 1)[][] = [
 
 describe("V1 scaffold (function patterns only)", () => {
 	test("matrix is 21x21 and mostly null before data placement", () => {
-		const m = buildScaffoldV1();
+		const m = buildMatrixScaffold(1);
 		expect(m.size).toBe(21);
 		// Some cells are set (finders/timing/dark), but most are still null or reserved-only
 		const total = m.size * m.size;
@@ -32,7 +32,7 @@ describe("V1 scaffold (function patterns only)", () => {
 	});
 
 	test("finder patterns present with white separators", () => {
-		const m = buildScaffoldV1();
+		const m = buildMatrixScaffold(1);
 
 		// helper to assert a 7x7 finder at (top,left) and a white ring around it
 		const assertFinder = (top: number, left: number) => {
@@ -73,7 +73,7 @@ describe("V1 scaffold (function patterns only)", () => {
 	});
 
 	test("finder bodies match the 7x7 template and are all reserved", () => {
-		const m = buildScaffoldV1();
+		const m = buildMatrixScaffold(1);
 		const coords: Array<[number, number]> = [
 			[0, 0],
 			[0, 21 - 7],
@@ -92,7 +92,7 @@ describe("V1 scaffold (function patterns only)", () => {
 	});
 
 	test("timing patterns alternate along row 6 and column 6 where not covered", () => {
-		const m = buildScaffoldV1();
+		const m = buildMatrixScaffold(1);
 
 		// Horizontal timing exists only at row 6, cols 8..12 on V1
 		for (let c = 8; c <= m.size - 9; c++) {
@@ -112,7 +112,7 @@ describe("V1 scaffold (function patterns only)", () => {
 	});
 
 	test("timing placement does not overwrite finder or separator reservations", () => {
-		const m = buildScaffoldV1();
+		const m = buildMatrixScaffold(1);
 
 		// Row 6 just outside the top-left finder should remain white separator
 		expect(m.values[6][7]).toBe(0);
@@ -134,13 +134,13 @@ describe("V1 scaffold (function patterns only)", () => {
 	});
 
 	test("dark module at (13,8) is set black and reserved", () => {
-		const m = buildScaffoldV1();
+		const m = buildMatrixScaffold(1);
 		expect(m.values[13][8]).toBe(1);
 		expect(m.reserved[13][8]).toBe(true);
 	});
 
 	test("format info areas are reserved but not yet written (values null)", () => {
-		const m = buildScaffoldV1();
+		const m = buildMatrixScaffold(1);
 		const n = m.size;
 
 		// Top-left cross
@@ -169,7 +169,7 @@ describe("V1 scaffold (function patterns only)", () => {
 	});
 
 	test("regular data modules remain unreserved and null prior to data placement", () => {
-		const m = buildScaffoldV1();
+		const m = buildMatrixScaffold(1);
 		const samples: Array<[number, number]> = [
 			[10, 10],
 			[12, 15],

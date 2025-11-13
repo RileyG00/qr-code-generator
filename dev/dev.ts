@@ -1,15 +1,14 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { buildV1LMatrix, renderSvg } from "../src";
+import { encodeToSvg } from "../src";
 
 const CURRENT_DIR = dirname(fileURLToPath(import.meta.url));
-const OUTPUT_SVG = join(CURRENT_DIR, "hello.svg");
+const OUTPUT_SVG = join(CURRENT_DIR, "test.svg");
 const DEFAULT_TEXT = "Hello from App";
 
 export const writeHelloSvg = (text: string = DEFAULT_TEXT): string => {
-	const { matrix } = buildV1LMatrix(text);
-	const svg = renderSvg(matrix);
+	const svg = encodeToSvg(text);
 
 	mkdirSync(CURRENT_DIR, { recursive: true });
 	writeFileSync(OUTPUT_SVG, svg, "utf8");

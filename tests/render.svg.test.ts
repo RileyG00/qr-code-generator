@@ -14,7 +14,7 @@ const buildMatrix = (rows: (0 | 1)[][]) => {
 };
 
 describe("renderSvg", () => {
-	test("renders default SVG output with aggregated path segments", () => {
+	test("renders default SVG output with absolute pixel sizing", () => {
 		const matrix = buildMatrix([
 			[1, 1, 0],
 			[0, 1, 1],
@@ -23,13 +23,11 @@ describe("renderSvg", () => {
 
 		const svg = renderSvg(matrix);
 
-		expect(svg).toContain('viewBox="0 0 11 11"');
+		expect(svg).toContain('viewBox="0 0 88 88"');
 		expect(svg).toContain('width="88"');
 		expect(svg).toContain('height="88"');
-		expect(svg).toContain('<rect width="11" height="11" fill="#ffffff" />');
-		expect(svg).toContain(
-			'<path d="M4 4h2v1h-2zM5 5h2v1h-2zM6 6h1v1h-1z" fill="#000000" />',
-		);
+		expect(svg).toContain('<rect width="88" height="88" fill="#ffffff" />');
+		expect(svg).toMatch(/<rect x="32" y="32" width="8" height="8" fill="#000000" \/>/);
 	});
 
 	test("supports custom sizing, metadata, and colors", () => {
@@ -51,15 +49,12 @@ describe("renderSvg", () => {
 		expect(svg).toContain('shape-rendering="geometricPrecision"');
 		expect(svg).toContain('<title>Say &quot;hi&quot; &amp; &lt;friends&gt;</title>');
 		expect(svg).toContain("<desc>Less &gt; more</desc>");
-		expect(svg).toContain('<rect width="4" height="4" fill="transparent" />');
-		expect(svg).toContain(
-			'<path d="M1 1h1v1h-1zM1 2h2v1h-2z" fill="#112233" />',
-		);
-		expect(svg).toContain('width="8"');
-		expect(svg).toContain('height="8"');
+		expect(svg).toContain('<rect width="8" height="8" fill="transparent" />');
+		expect(svg).toContain('viewBox="0 0 8 8"');
+		expect(svg).toMatch(/<rect x="2" y="2" width="2" height="2" fill="#112233" \/>/);
 	});
 
-	test("falls back to backgroundColor and omits paths when no dark modules are set", () => {
+	test("falls back to backgroundColor and omits module rects when no dark modules are set", () => {
 		const matrix = makeMatrix(1);
 
 		const svg = renderSvg(matrix, {
@@ -68,10 +63,10 @@ describe("renderSvg", () => {
 			backgroundColor: "#eeeeee",
 		});
 
-		expect(svg).toContain('<rect width="1" height="1" fill="#eeeeee" />');
+		expect(svg).toContain('<rect width="5" height="5" fill="#eeeeee" />');
 		expect(svg).toContain('width="5"');
 		expect(svg).toContain('height="5"');
-		expect(svg).not.toContain("<path");
+		expect(svg).not.toMatch(/<rect x="/);
 	});
 
 	test("clamps negative margins and resets invalid module sizes to defaults", () => {
@@ -82,9 +77,9 @@ describe("renderSvg", () => {
 			moduleSize: Number.NaN,
 		});
 
-		expect(svg).toContain('viewBox="0 0 1 1"');
+		expect(svg).toContain('viewBox="0 0 8 8"');
 		expect(svg).toContain('width="8"');
 		expect(svg).toContain('height="8"');
-		expect(svg).toContain('<path d="M0 0h1v1h-1z" fill="#000000" />');
+		expect(svg).toMatch(/<rect x="0" y="0" width="8" height="8" fill="#000000" \/>/);
 	});
 });

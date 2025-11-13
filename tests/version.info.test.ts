@@ -1,9 +1,9 @@
 import { describe, expect, test } from "vitest";
+import { reserveVersionInfo } from "../src/matrix/version";
 import {
 	makeVersionInfoBits,
-	reserveVersionInfo,
-	writeVersionInfo,
-} from "../src/matrix/version";
+	writeVersionInfoBits as writeVersionInfo,
+} from "../src/mask/version-info";
 import { makeMatrix } from "../src/matrix/types";
 
 const bitsToString = (bits: number, width: number): string =>

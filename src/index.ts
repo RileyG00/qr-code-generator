@@ -1,26 +1,57 @@
-import { makeV1LDataCodewords } from "./encoder/makeV1LDataCodewords";
-import { makeV1LEcc } from "./encoder/makeV1LEcc";
-import { QROptions, QRCodewords } from "./types";
+import { prepareCodewords as prepareGenericCodewords } from "./encoder";
+import type { EccLevel, QRCodewords, QROptions, VersionNumber } from "./types";
 import { V1_SIZE } from "./constants/v1l";
+import { buildMatrix } from "./matrix";
 import { buildMatrixV1L_Unmasked } from "./matrix/v1l";
-import { chooseBestMask } from "./mask/mask-score";
-import { makeFormatInfoBits, writeFormatInfo } from "./matrix/format";
-import { writeVersionInfo } from "./matrix/version";
+import { finalizeMatrix } from "./mask";
 import type { MaskId, QrMatrix } from "./mask/types";
+import { renderSvg, type SvgRenderOptions } from "./render/svg";
 
-export const prepareV1L = (input: string, _opts?: QROptions): QRCodewords => {
-	const dataCodewords = makeV1LDataCodewords(input, _opts);
-	const eccCodewords = Array.from(makeV1LEcc(dataCodewords));
-	const allCodewords = [...dataCodewords, ...eccCodewords];
+export interface EncodeMatrixResult {
+	version: VersionNumber;
+	ecc: EccLevel;
+	maskId: MaskId;
+	formatBits: number;
+	matrix: QrMatrix;
+}
+
+export const prepareCodewords = prepareGenericCodewords;
+
+export const encodeToMatrix = (
+	input: string,
+	opts?: QROptions,
+): EncodeMatrixResult => {
+	const prepared = prepareCodewords(input, opts);
+	const baseMatrix = buildMatrix(
+		prepared.version,
+		prepared.interleavedCodewords,
+	);
+	const { maskId, matrix, formatBits } = finalizeMatrix(
+		baseMatrix as QrMatrix,
+		prepared.version,
+		prepared.ecc,
+	);
 
 	return {
-		version: 1,
-		ecc: "L",
-		dataCodewords,
-		eccCodewords,
-		allCodewords,
+		version: prepared.version,
+		ecc: prepared.ecc,
+		maskId,
+		formatBits,
+		matrix,
 	};
 };
+
+export const encodeToSvg = (
+	input: string,
+	opts?: QROptions,
+	renderOptions?: SvgRenderOptions,
+): string => {
+	const { matrix } = encodeToMatrix(input, opts);
+	return renderSvg(matrix, renderOptions);
+};
+
+export const prepareV1L = (input: string, _opts?: QROptions): QRCodewords =>
+	prepareCodewords(input, { version: 1, ecc: "L" });
 
 export const prepareV1LWithEcc = (
 	input: string,
@@ -30,7 +61,7 @@ export const prepareV1LWithEcc = (
 	return {
 		...prepared,
 		totalCodewords:
-			prepared.allCodewords?.length ??
+			prepared.interleavedCodewords.length ??
 			prepared.dataCodewords.length + prepared.eccCodewords.length,
 	};
 };
@@ -50,22 +81,18 @@ export const buildV1LMatrix = (
 ): QRMatrixBuildResult => {
 	const prepared = prepareV1L(input, _opts);
 	const all =
-		prepared.allCodewords ??
-		[...prepared.dataCodewords, ...prepared.eccCodewords];
+		prepared.interleavedCodewords ??
+		Uint8Array.from([
+			...prepared.dataCodewords,
+			...prepared.eccCodewords,
+		]);
 	const baseMatrix = buildMatrixV1L_Unmasked(Uint8Array.from(all));
-	writeVersionInfo(baseMatrix, prepared.version);
 
-	const decorator = (candidate: QrMatrix, maskId: MaskId) => {
-		const bits = makeFormatInfoBits(prepared.ecc, maskId);
-		writeFormatInfo(candidate, bits);
-	};
-
-	const { maskId, matrix, score } = chooseBestMask(baseMatrix as QrMatrix, {
-		decorateCandidate: decorator,
-	});
-
-	const formatBits = makeFormatInfoBits(prepared.ecc, maskId);
-	writeFormatInfo(matrix, formatBits);
+	const { maskId, matrix, score, formatBits } = finalizeMatrix(
+		baseMatrix as QrMatrix,
+		prepared.version,
+		prepared.ecc,
+	);
 
 	return { matrix, maskId, formatBits, score };
 };
