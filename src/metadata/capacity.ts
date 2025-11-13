@@ -1,0 +1,232 @@
+import type { EccLevel } from "../types";
+
+export type VersionNumber =
+	| 1
+	| 2
+	| 3
+	| 4
+	| 5
+	| 6
+	| 7
+	| 8
+	| 9
+	| 10
+	| 11
+	| 12
+	| 13
+	| 14
+	| 15
+	| 16
+	| 17
+	| 18
+	| 19
+	| 20
+	| 21
+	| 22
+	| 23
+	| 24
+	| 25
+	| 26
+	| 27
+	| 28
+	| 29
+	| 30
+	| 31
+	| 32
+	| 33
+	| 34
+	| 35
+	| 36
+	| 37
+	| 38
+	| 39
+	| 40;
+
+export interface EccBlockCapacity {
+	dataCodewords: number;
+	eccCodewordsPerBlock: number;
+	numBlocks: number;
+}
+
+export interface VersionCapacity {
+	version: VersionNumber;
+	size: number;
+	totalCodewords: number;
+	alignments: readonly number[];
+	requiresFormatInfo: true;
+	requiresVersionInfo: boolean;
+	levels: Record<EccLevel, EccBlockCapacity>;
+}
+
+const ALIGNMENT_PATTERN_TABLE = {
+	1: [],
+	2: [6, 18],
+	3: [6, 22],
+	4: [6, 26],
+	5: [6, 30],
+	6: [6, 34],
+	7: [6, 22, 38],
+	8: [6, 24, 42],
+	9: [6, 26, 46],
+	10: [6, 28, 50],
+	11: [6, 30, 54],
+	12: [6, 32, 58],
+	13: [6, 34, 62],
+	14: [6, 26, 46, 66],
+	15: [6, 26, 48, 70],
+	16: [6, 26, 50, 74],
+	17: [6, 30, 54, 78],
+	18: [6, 30, 56, 82],
+	19: [6, 30, 58, 86],
+	20: [6, 34, 62, 90],
+	21: [6, 28, 50, 72, 94],
+	22: [6, 26, 50, 74, 98],
+	23: [6, 30, 54, 78, 102],
+	24: [6, 28, 54, 80, 106],
+	25: [6, 32, 58, 84, 110],
+	26: [6, 30, 58, 86, 114],
+	27: [6, 34, 62, 90, 118],
+	28: [6, 26, 50, 74, 98, 122],
+	29: [6, 30, 54, 78, 102, 126],
+	30: [6, 26, 52, 78, 104, 130],
+	31: [6, 30, 56, 82, 108, 134],
+	32: [6, 26, 54, 82, 110, 138],
+	33: [6, 30, 58, 86, 114, 142],
+	34: [6, 34, 62, 90, 118, 146],
+	35: [6, 30, 54, 78, 102, 126, 150],
+	36: [6, 24, 50, 76, 102, 128, 154],
+	37: [6, 28, 54, 80, 106, 132, 158],
+	38: [6, 32, 58, 84, 110, 136, 162],
+	39: [6, 26, 54, 82, 110, 138, 166],
+	40: [6, 30, 58, 86, 114, 142, 170],
+} as const satisfies Record<
+	VersionNumber,
+	readonly number[]
+>;
+
+const ECC_CODEWORDS_PER_BLOCK: Record<EccLevel, readonly number[]> = {
+	L: [
+		-1, 7, 10, 15, 20, 26, 18, 20, 24, 30, 18, 20, 24, 26, 30, 22, 24, 28, 30, 28, 28, 28, 28, 30, 30, 26, 28, 30, 30, 30,
+		30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30,
+	],
+	M: [
+		-1, 10, 16, 26, 18, 24, 16, 18, 22, 22, 26, 30, 22, 22, 24, 24, 28, 28, 26, 26, 26, 26, 28, 28, 28, 28, 28, 28, 28, 28,
+		28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28,
+	],
+	Q: [
+		-1, 13, 22, 18, 26, 18, 24, 18, 22, 20, 24, 28, 26, 24, 20, 30, 24, 28, 28, 26, 30, 28, 30, 30, 30, 30, 28, 30, 30, 30,
+		30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30,
+	],
+	H: [
+		-1, 17, 28, 22, 16, 22, 28, 26, 26, 24, 28, 24, 28, 22, 24, 24, 30, 28, 28, 26, 28, 30, 24, 30, 30, 30, 30, 30, 30, 30,
+		30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30,
+	],
+};
+
+const NUM_ERROR_CORRECTION_BLOCKS: Record<EccLevel, readonly number[]> = {
+	L: [
+		-1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 4, 4, 4, 4, 4, 6, 6, 6, 6, 7, 8, 8, 9, 9, 10, 12, 12, 12, 13, 14, 15, 16, 17, 18, 19, 19,
+		20, 21, 22, 24, 25,
+	],
+	M: [
+		-1, 1, 1, 1, 2, 2, 4, 4, 4, 5, 5, 5, 8, 9, 9, 10, 10, 11, 13, 14, 16, 17, 17, 18, 20, 21, 23, 25, 26, 28, 29, 31, 33, 35,
+		37, 38, 40, 43, 45, 47, 49,
+	],
+	Q: [
+		-1, 1, 1, 2, 2, 4, 4, 6, 6, 8, 8, 8, 10, 12, 16, 12, 17, 16, 18, 21, 20, 23, 23, 25, 27, 29, 34, 34, 35, 38, 40, 43, 45, 48,
+		51, 53, 56, 59, 62, 65, 68,
+	],
+	H: [
+		-1, 1, 1, 2, 4, 4, 4, 5, 6, 8, 8, 11, 11, 16, 16, 18, 16, 19, 21, 25, 25, 25, 34, 30, 32, 35, 37, 40, 42, 45, 48, 51, 54, 57,
+		60, 63, 66, 70, 74, 77, 81,
+	],
+};
+
+const TOTAL_CODEWORDS: readonly number[] = [
+	0, 26, 44, 70, 100, 134, 172, 196, 242, 292, 346, 404, 466, 532, 581, 655, 733, 815, 901, 991, 1085, 1156, 1258, 1364, 1474, 1588, 1706,
+	1828, 1921, 2051, 2185, 2323, 2465, 2611, 2761, 2876, 3034, 3196, 3362, 3532, 3706,
+];
+
+const ECC_LEVELS: readonly EccLevel[] = ["L", "M", "Q", "H"];
+
+export const VERSION_CAPACITIES: readonly VersionCapacity[] = Array.from({ length: 40 }, (_, idx) => {
+	const version = (idx + 1) as VersionNumber;
+	const size = 17 + 4 * version;
+	const totalCodewords = TOTAL_CODEWORDS[version];
+	const alignments = ALIGNMENT_PATTERN_TABLE[version];
+
+	const levels = ECC_LEVELS.reduce<VersionCapacity["levels"]>((acc, level) => {
+		const eccPerBlock = ECC_CODEWORDS_PER_BLOCK[level][version];
+		const numBlocks = NUM_ERROR_CORRECTION_BLOCKS[level][version];
+		const dataCodewords = totalCodewords - eccPerBlock * numBlocks;
+		acc[level] = { dataCodewords, eccCodewordsPerBlock: eccPerBlock, numBlocks };
+		return acc;
+	}, {} as VersionCapacity["levels"]);
+
+	return {
+		version,
+		size,
+		totalCodewords,
+		alignments,
+		levels,
+		requiresFormatInfo: true,
+		requiresVersionInfo: version >= 7,
+	};
+});
+
+const MODE_INDICATOR_BITS = 4;
+
+const getCharCountBitSize = (version: number): number => (version <= 9 ? 8 : 16);
+
+const doesCharCountFieldFit = (bytes: number, version: VersionNumber): boolean => {
+	const charBits = getCharCountBitSize(version);
+	const maxChars = (1 << charBits) - 1;
+	return bytes <= maxChars;
+};
+
+export const selectVersionAndEcc = (
+	inputBitLength: number,
+	mode: "byte",
+): { version: VersionNumber; ecc: EccLevel } => {
+	if (mode !== "byte") {
+		throw new Error(`Unsupported mode "${mode}". Only byte mode is implemented.`);
+	}
+	if (inputBitLength < 0) {
+		throw new Error("inputBitLength must be non-negative.");
+	}
+
+	const requiredBytes = Math.ceil(inputBitLength / 8);
+
+	for (const versionInfo of VERSION_CAPACITIES) {
+		if (!doesCharCountFieldFit(requiredBytes, versionInfo.version)) {
+			continue;
+		}
+
+		const charCountBits = getCharCountBitSize(versionInfo.version);
+		const headerBits = MODE_INDICATOR_BITS + charCountBits + inputBitLength;
+
+		for (const ecc of ECC_LEVELS) {
+			const capacityBits = versionInfo.levels[ecc].dataCodewords * 8;
+			if (headerBits > capacityBits) {
+				continue;
+			}
+
+			const remainingAfterHeader = capacityBits - headerBits;
+			const terminatorBits = Math.min(4, Math.max(0, remainingAfterHeader));
+			let bitsUsed = headerBits + terminatorBits;
+
+			const remainder = bitsUsed % 8;
+			if (remainder !== 0) {
+				bitsUsed += 8 - remainder;
+			}
+
+			if (bitsUsed <= capacityBits) {
+				return { version: versionInfo.version, ecc };
+			}
+		}
+	}
+
+	throw new Error(
+		`Input requires ${inputBitLength} bits (byte mode), which exceeds the capacity of Version 40-L.`,
+	);
+};
