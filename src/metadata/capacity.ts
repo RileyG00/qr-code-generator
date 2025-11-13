@@ -107,6 +107,12 @@ const TOTAL_CODEWORDS: readonly number[] = [
 
 const ECC_LEVELS: readonly EccLevel[] = ["L", "M", "Q", "H"];
 
+export interface SelectionOptions {
+	minVersion?: VersionNumber;
+	maxVersion?: VersionNumber;
+	ecc?: EccLevel;
+}
+
 export const VERSION_CAPACITIES: readonly VersionCapacity[] = Array.from({ length: 40 }, (_, idx) => {
 	const version = (idx + 1) as VersionNumber;
 	const size = 17 + 4 * version;
@@ -180,6 +186,7 @@ export const canFitByteModePayload = (
 export const selectVersionAndEcc = (
 	inputBitLength: number,
 	mode: "byte",
+	options?: SelectionOptions,
 ): { version: VersionNumber; ecc: EccLevel } => {
 	if (mode !== "byte") {
 		throw new Error(`Unsupported mode "${mode}". Only byte mode is implemented.`);
@@ -192,17 +199,35 @@ export const selectVersionAndEcc = (
 		throw new Error("byte mode inputBitLength must be a multiple of 8.");
 	}
 
-	const requiredBytes = inputBitLength / 8;
+	const minVersion = options?.minVersion ?? 1;
+	const maxVersion = options?.maxVersion ?? 40;
+	if (minVersion < 1 || maxVersion > 40) {
+		throw new RangeError("Version constraints must be within 1..40.");
+	}
+	if (minVersion > maxVersion) {
+		throw new RangeError(
+			`minVersion (${minVersion}) must be <= maxVersion (${maxVersion}).`,
+		);
+	}
 
-	for (const versionInfo of VERSION_CAPACITIES) {
-		for (const ecc of ECC_LEVELS) {
+	const requiredBytes = inputBitLength / 8;
+	const allowedVersions = VERSION_CAPACITIES.filter(
+		(info) => info.version >= minVersion && info.version <= maxVersion,
+	);
+	const eccLevels: readonly EccLevel[] = options?.ecc
+		? [options.ecc]
+		: ECC_LEVELS;
+
+	for (const versionInfo of allowedVersions) {
+		for (const ecc of eccLevels) {
 			if (canFitByteModePayload(requiredBytes, versionInfo, ecc)) {
 				return { version: versionInfo.version, ecc };
 			}
 		}
 	}
 
-	throw new Error(
-		`Input requires ${inputBitLength} bits (byte mode), which exceeds the capacity of Version 40-L.`,
+	const eccLabel = options?.ecc ?? "any";
+	throw new RangeError(
+		`Input requires ${inputBitLength} bits (byte mode), but no version between ${minVersion} and ${maxVersion} with ECC ${eccLabel} can fit.`,
 	);
 };

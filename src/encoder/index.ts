@@ -1,6 +1,5 @@
 import type { QROptions, QRCodewords, EccLevel, VersionNumber } from "../types";
 import {
-	VERSION_CAPACITIES,
 	canFitByteModePayload,
 	getVersionCapacity,
 	selectVersionAndEcc,
@@ -23,7 +22,21 @@ const resolveVersionAndEcc = (
 		throw new Error(`Unsupported mode "${opts.mode}". Only byte mode is implemented.`);
 	}
 
+	const minVersion = opts?.minVersion ?? 1;
+	const maxVersion = opts?.maxVersion ?? 40;
+	if (minVersion > maxVersion) {
+		throw new RangeError(
+			`minVersion (${minVersion}) must be <= maxVersion (${maxVersion}).`,
+		);
+	}
+
 	if (opts?.version !== undefined) {
+		if (opts.version < minVersion || opts.version > maxVersion) {
+			throw new RangeError(
+				`Version ${opts.version} is outside the allowed range ${minVersion}..${maxVersion}.`,
+			);
+		}
+
 		const version = opts.version;
 		const ecc: EccLevel = opts.ecc ?? DEFAULT_ECC;
 		const info = getVersionCapacity(version);
@@ -35,19 +48,12 @@ const resolveVersionAndEcc = (
 		return { version, ecc };
 	}
 
-	if (opts?.ecc) {
-		for (const info of VERSION_CAPACITIES) {
-			if (canFitByteModePayload(byteLength, info, opts.ecc)) {
-				return { version: info.version, ecc: opts.ecc };
-			}
-		}
-		throw new RangeError(
-			`Payload of ${byteLength} bytes does not fit in any version with ECC level ${opts.ecc}.`,
-		);
-	}
-
 	const bits = byteLength * 8;
-	return selectVersionAndEcc(bits, "byte");
+	return selectVersionAndEcc(bits, "byte", {
+		minVersion,
+		maxVersion,
+		ecc: opts?.ecc,
+	});
 };
 
 export const prepareCodewords = (input: string, opts?: QROptions): QRCodewords => {

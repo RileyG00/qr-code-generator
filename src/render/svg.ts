@@ -30,21 +30,19 @@ export const renderSvg = (
 		throw new Error("renderSvg requires a matrix with a positive size.");
 	}
 
-	const margin = sanitizeMargin(options.margin);
+	const marginModules = sanitizeMargin(options.margin);
 	const moduleSize = sanitizeModuleSize(options.moduleSize);
 	const shapeRendering = options.shapeRendering ?? DEFAULT_SHAPE_RENDERING;
 	const lightColor =
 		options.lightColor ?? options.backgroundColor ?? DEFAULT_LIGHT_COLOR;
 	const darkColor = options.darkColor ?? DEFAULT_DARK_COLOR;
 
-	const totalSize = matrix.size + margin * 2;
-	const drawingCommands = collectPathSegments(matrix, margin);
-	const viewBox = `0 0 ${totalSize} ${totalSize}`;
-	const width = totalSize * moduleSize;
-	const height = totalSize * moduleSize;
+	const modulesWithMargin = matrix.size + marginModules * 2;
+	const pixelSize = modulesWithMargin * moduleSize;
+	const viewBox = `0 0 ${pixelSize} ${pixelSize}`;
 
 	const svg: string[] = [
-		`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" shape-rendering="${shapeRendering}" width="${width}" height="${height}">`,
+		`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" shape-rendering="${shapeRendering}" width="${pixelSize}" height="${pixelSize}">`,
 	];
 
 	if (hasContent(options.title)) {
@@ -55,13 +53,19 @@ export const renderSvg = (
 	}
 
 	svg.push(
-		`<rect width="${totalSize}" height="${totalSize}" fill="${escapeAttribute(lightColor)}" />`,
+		`<rect width="${pixelSize}" height="${pixelSize}" fill="${escapeAttribute(lightColor)}" />`,
 	);
 
-	if (drawingCommands.length > 0) {
-		svg.push(
-			`<path d="${drawingCommands.join("")}" fill="${escapeAttribute(darkColor)}" />`,
-		);
+	const offset = marginModules * moduleSize;
+	for (let r = 0; r < matrix.size; r++) {
+		for (let c = 0; c < matrix.size; c++) {
+			if (matrix.values[r][c] !== 1) continue;
+			const x = offset + c * moduleSize;
+			const y = offset + r * moduleSize;
+			svg.push(
+				`<rect x="${x}" y="${y}" width="${moduleSize}" height="${moduleSize}" fill="${escapeAttribute(darkColor)}" />`,
+			);
+		}
 	}
 
 	svg.push("</svg>");
@@ -78,35 +82,6 @@ const sanitizeModuleSize = (value: number | undefined): number => {
 		return DEFAULT_MODULE_SIZE;
 	}
 	return value;
-};
-
-const collectPathSegments = (matrix: QrMatrix, margin: number): string[] => {
-	const commands: string[] = [];
-
-	for (let r = 0; r < matrix.size; r++) {
-		const row = matrix.values[r];
-		if (!row) continue;
-
-		let c = 0;
-		while (c < matrix.size) {
-			if (row[c] !== 1) {
-				c++;
-				continue;
-			}
-
-			const start = c;
-			while (c < matrix.size && row[c] === 1) {
-				c++;
-			}
-			const length = c - start;
-
-			const x = start + margin;
-			const y = r + margin;
-			commands.push(`M${x} ${y}h${length}v1h-${length}z`);
-		}
-	}
-
-	return commands;
 };
 
 const hasContent = (value: string | undefined): value is string =>

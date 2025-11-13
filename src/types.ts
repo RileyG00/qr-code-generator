@@ -46,6 +46,8 @@ export interface QROptions {
 	version?: VersionNumber;
 	ecc?: EccLevel;
 	mode?: "byte";
+	minVersion?: VersionNumber;
+	maxVersion?: VersionNumber;
 }
 
 export type ByteBuffer = number[] | Uint8Array;

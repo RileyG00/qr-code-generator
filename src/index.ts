@@ -1,11 +1,54 @@
 import { prepareCodewords as prepareGenericCodewords } from "./encoder";
-import { QROptions, QRCodewords } from "./types";
+import type { EccLevel, QRCodewords, QROptions, VersionNumber } from "./types";
 import { V1_SIZE } from "./constants/v1l";
+import { buildMatrix } from "./matrix";
 import { buildMatrixV1L_Unmasked } from "./matrix/v1l";
 import { finalizeMatrix } from "./mask";
 import type { MaskId, QrMatrix } from "./mask/types";
+import { renderSvg, type SvgRenderOptions } from "./render/svg";
+
+export interface EncodeMatrixResult {
+	version: VersionNumber;
+	ecc: EccLevel;
+	maskId: MaskId;
+	formatBits: number;
+	matrix: QrMatrix;
+}
 
 export const prepareCodewords = prepareGenericCodewords;
+
+export const encodeToMatrix = (
+	input: string,
+	opts?: QROptions,
+): EncodeMatrixResult => {
+	const prepared = prepareCodewords(input, opts);
+	const baseMatrix = buildMatrix(
+		prepared.version,
+		prepared.interleavedCodewords,
+	);
+	const { maskId, matrix, formatBits } = finalizeMatrix(
+		baseMatrix as QrMatrix,
+		prepared.version,
+		prepared.ecc,
+	);
+
+	return {
+		version: prepared.version,
+		ecc: prepared.ecc,
+		maskId,
+		formatBits,
+		matrix,
+	};
+};
+
+export const encodeToSvg = (
+	input: string,
+	opts?: QROptions,
+	renderOptions?: SvgRenderOptions,
+): string => {
+	const { matrix } = encodeToMatrix(input, opts);
+	return renderSvg(matrix, renderOptions);
+};
 
 export const prepareV1L = (input: string, _opts?: QROptions): QRCodewords =>
 	prepareCodewords(input, { version: 1, ecc: "L" });
