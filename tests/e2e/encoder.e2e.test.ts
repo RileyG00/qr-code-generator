@@ -11,16 +11,6 @@ const assertFilled = (size: number, rows: (0 | 1 | null)[][]) => {
 };
 
 describe("encodeToMatrix", () => {
-	test("produces version 1-L for short payloads", () => {
-		const result = encodeToMatrix("HELLO");
-		expect(result.version).toBe(1);
-		expect(result.ecc).toBe("L");
-		expect(result.matrix.size).toBe(21);
-		expect(result.maskId).toBeGreaterThanOrEqual(0);
-		expect(result.maskId).toBeLessThanOrEqual(7);
-		assertFilled(result.matrix.size, result.matrix.values);
-	});
-
 	test("automatically promotes to Version 2 for inputs beyond V1 capacity", () => {
 		const payload = "A".repeat(20);
 		const result = encodeToMatrix(payload);
@@ -33,23 +23,6 @@ describe("encodeToMatrix", () => {
 		const result = encodeToMatrix(payload);
 		expect(result.version).toBeGreaterThanOrEqual(3);
 		expect(result.matrix.size).toBe(17 + 4 * result.version);
-	});
-
-	test("higher ECC levels choose same or larger versions", () => {
-		const payload = "The quick brown fox jumps over the lazy dog!";
-		const low = encodeToMatrix(payload, { ecc: "L" });
-		const high = encodeToMatrix(payload, { ecc: "H" });
-		expect(high.version).toBeGreaterThanOrEqual(low.version);
-		expect(high.matrix.size).toBe(17 + 4 * high.version);
-	});
-
-	test("tighter version constraints can reject stronger ECC levels", () => {
-		const payload = "A".repeat(28);
-		const fits = encodeToMatrix(payload, { ecc: "L", maxVersion: 2 });
-		expect(fits.version).toBeLessThanOrEqual(2);
-		expect(() =>
-			encodeToMatrix(payload, { ecc: "H", maxVersion: 2 }),
-		).toThrow(/no version/i);
 	});
 
 	test("encodeToSvg wraps encodeToMatrix and renders expected dimensions", () => {

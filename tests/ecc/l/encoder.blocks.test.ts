@@ -1,8 +1,8 @@
 import { describe, expect, test } from "vitest";
-import { prepareCodewords } from "../src";
-import { getVersionCapacity } from "../src/metadata/capacity";
+import { prepareCodewords } from "../../../src";
+import { getVersionCapacity } from "../../../src/metadata/capacity";
 
-describe("Generic encoder blocks", () => {
+describe("Generic encoder blocks (ECC L)", () => {
 	test("Version 6-L splits data into correct block sizes and interleaves", () => {
 		const payload = "ABCDEFGHIJKLMNOPQRSTUVWX".repeat(4); // 96 bytes
 		const version = 6;

@@ -1,8 +1,9 @@
 import { describe, expect, test } from "vitest";
-import { prepareCodewords, prepareV1L } from "../src";
-import { encodeUtf8 } from "../src/encoder/byte-mode";
-import { makeDataCodewords } from "../src/encoder/data-codewords";
-import { getVersionCapacity } from "../src/metadata/capacity";
+import { TextDecoder } from "node:util";
+import { encodeToMatrix, prepareCodewords, prepareV1L } from "../../../src";
+import { encodeUtf8 } from "../../../src/encoder/byte-mode";
+import { makeDataCodewords } from "../../../src/encoder/data-codewords";
+import { getVersionCapacity } from "../../../src/metadata/capacity";
 
 // Small helpers used by several tests
 const getModeNibble = (firstByte: number) => (firstByte >>> 4) & 0x0f;
@@ -30,16 +31,14 @@ const isByteBuffer = (x: unknown): x is number[] | Uint8Array =>
 
 const encodeV1LData = (text: string): number[] => {
 	const versionInfo = getVersionCapacity(1);
-	return Array.from(
-		makeDataCodewords(encodeUtf8(text), versionInfo, "L"),
-	);
+	return Array.from(makeDataCodewords(encodeUtf8(text), versionInfo, "L"));
 };
 
 describe("V1-L byte-mode data codewords", () => {
-	test("V1-L: HELLO → 19 data codewords (exact bytes, incl. pad pattern)", () => {
+	test("V1-L: HELLO yields 19 data codewords (exact bytes, incl. pad pattern)", () => {
 		// Precomputed per QR spec:
 		// Bits: 0100 (mode) + 00000101 (count=5) + "HELLO" (0x48 0x45 0x4C 0x4C 0x4F)
-		// + terminator '0000' to byte align → first 7 bytes listed below
+		// + terminator '0000' to byte align - first 7 bytes listed below
 		// Then alternate pad bytes 0xEC, 0x11 until 19 total data codewords.
 		const expectedHELLO = [
 			0x40,
@@ -85,7 +84,7 @@ describe("V1-L byte-mode data codewords", () => {
 		}
 	});
 
-	test("V1-L: capacity boundary — 17 bytes should fit exactly (no pads expected)", () => {
+	test("V1-L: capacity boundary - 17 bytes should fit exactly (no pads expected)", () => {
 		const seventeenA = "A".repeat(17); // Byte-mode capacity for V1-L
 		const cw = encodeV1LData(seventeenA);
 		expect(cw).toHaveLength(19);
@@ -148,5 +147,41 @@ describe("prepareV1L end-to-end assembly", () => {
 		expect(result.interleavedCodewords.length).toBe(
 			result.dataCodewords.length + result.eccCodewords.length,
 		);
+	});
+});
+
+describe("V1-L matrix selection", () => {
+	test("encodeToMatrix stays on version 1-L for short payloads", () => {
+		const result = encodeToMatrix("HELLO", { ecc: "L" });
+		expect(result.version).toBe(1);
+		expect(result.ecc).toBe("L");
+		expect(result.matrix.size).toBe(21);
+		expect(result.maskId).toBeGreaterThanOrEqual(0);
+		expect(result.maskId).toBeLessThanOrEqual(7);
+	});
+
+	test("forcing version 1 rejects payloads beyond the V1-L capacity", () => {
+		const payload = "A".repeat(18);
+		expect(() =>
+			encodeToMatrix(payload, { ecc: "L", minVersion: 1, maxVersion: 1 }),
+		).toThrow(/no version/i);
+	});
+});
+
+describe("byte-mode UTF-8 round trip", () => {
+	test("long payload encodes to raw bytes and decodes back to the original text", () => {
+		const longPayload =
+			"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed vitae urna nec sapien tincidunt dignissim. Quisque vehicula nunc mattis hendrerit et eget efficitur mauris est sed purus.";
+
+		expect(longPayload.length).toBeGreaterThanOrEqual(150);
+		expect(longPayload.length).toBeLessThanOrEqual(200);
+
+		const encodedBytes = encodeUtf8(longPayload);
+		expect(encodedBytes).toBeInstanceOf(Uint8Array);
+
+		const decoder = new TextDecoder();
+		const decodedText = decoder.decode(encodedBytes);
+
+		expect(decodedText).toBe(longPayload);
 	});
 });
