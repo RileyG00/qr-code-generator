@@ -26,28 +26,16 @@ export const makeVersionInfoBits = (version: number): number => {
 
 export const writeVersionInfoBits = (matrix: Matrix, version: number): void => {
 	if (!shouldApplyVersionInfo(version)) return;
-	const bits = toBitsMSB(makeVersionInfoBits(version), 18);
-	const start = matrix.size - 11;
-	const topRightCoords: Array<[number, number]> = [];
-	const bottomLeftCoords: Array<[number, number]> = [];
+	const bits = makeVersionInfoBits(version);
+	const size = matrix.size;
+	const start = size - 11;
 
-	for (let row = 0; row < 6; row++) {
-		for (let col = 0; col < 3; col++) {
-			topRightCoords.push([row, start + col]);
-		}
-	}
+	for (let i = 0; i < 18; i++) {
+		const bit = ((bits >> i) & 1) === 1 ? 1 : 0;
+		const row = Math.floor(i / 3);
+		const col = start + (i % 3);
 
-	for (let row = 0; row < 3; row++) {
-		for (let col = 0; col < 6; col++) {
-			bottomLeftCoords.push([start + row, col]);
-		}
-	}
-
-	for (let idx = 0; idx < bits.length; idx++) {
-		const bit = bits[idx];
-		const [trRow, trCol] = topRightCoords[idx];
-		const [blRow, blCol] = bottomLeftCoords[idx];
-		setModule(matrix, trRow, trCol, bit, true);
-		setModule(matrix, blRow, blCol, bit, true);
+		setModule(matrix, row, col, bit as 0 | 1, true);
+		setModule(matrix, col, row, bit as 0 | 1, true);
 	}
 };

@@ -8,10 +8,7 @@ const OUTPUT_SVG = join(CURRENT_DIR, "test.svg");
 const DEFAULT_TEXT = "Hello from App";
 
 export const writeHelloSvg = (text: string = DEFAULT_TEXT): string => {
-	const t: string =
-		"Testing long messageTesting long messageTesting long messageTesting long messageTesting long messageTesting long messageTesting long messageTesting long messageTesting long messageTesting long messageTesting long messageTesting long messageTesting long messageTesting long messageTesting long messageTesting long messageTesting long messageTesting long messageTesting long messageTesting long messageTesting long messageTesting long messageTesting long message";
-
-	const svg = encodeToSvg(t);
+	const svg = encodeToSvg(text);
 
 	mkdirSync(CURRENT_DIR, { recursive: true });
 	writeFileSync(OUTPUT_SVG, svg, "utf8");

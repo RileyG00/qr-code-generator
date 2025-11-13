@@ -9,6 +9,11 @@ import { makeMatrix } from "../src/matrix/types";
 const bitsToString = (bits: number, width: number): string =>
 	bits.toString(2).padStart(width, "0");
 
+const bitsToRowMajor = (bits: number): string =>
+	Array.from({ length: 18 }, (_, idx) =>
+		((bits >> idx) & 1) === 1 ? "1" : "0",
+	).join("");
+
 const collectTopRight = (size: number): Array<[number, number]> => {
 	const start = size - 11;
 	const coords: Array<[number, number]> = [];
@@ -23,10 +28,10 @@ const collectTopRight = (size: number): Array<[number, number]> => {
 const collectBottomLeft = (size: number): Array<[number, number]> => {
 	const start = size - 11;
 	const coords: Array<[number, number]> = [];
-	for (let r = 0; r < 3; r++) {
-		for (let c = 0; c < 6; c++) {
-			coords.push([start + r, c]);
-		}
+	for (let i = 0; i < 18; i++) {
+		const row = Math.floor(i / 3);
+		const col = i % 3;
+		coords.push([start + col, row]);
 	}
 	return coords;
 };
@@ -72,19 +77,19 @@ describe("version info encoding", () => {
 	test("writeVersionInfo stamps identical bit patterns in both areas", () => {
 		const m = makeMatrix(45);
 		reserveVersionInfo(m, 7);
-		const bits = makeVersionInfoBits(7);
-		writeVersionInfo(m, 7);
+	const bits = makeVersionInfoBits(7);
+	writeVersionInfo(m, 7);
 
-		const expected = bitsToString(bits, 18);
-	const topRight = collectTopRight(m.size)
-		.map(([r, c]) => m.values[r][c])
-		.join("");
-	const bottomLeft = collectBottomLeft(m.size)
-		.map(([r, c]) => m.values[r][c])
-		.join("");
+		const topRight = collectTopRight(m.size)
+			.map(([r, c]) => m.values[r][c])
+			.join("");
+		const bottomLeft = collectBottomLeft(m.size)
+			.map(([r, c]) => m.values[r][c])
+			.join("");
 
-		expect(topRight).toBe(expected);
-		expect(bottomLeft).toBe(expected);
+		const rowMajor = bitsToRowMajor(bits);
+		expect(topRight).toBe(rowMajor);
+		expect(bottomLeft).toBe(rowMajor);
 	});
 
 	test("version info helpers no-op for version < 7", () => {

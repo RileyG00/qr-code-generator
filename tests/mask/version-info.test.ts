@@ -1,6 +1,9 @@
 import { describe, expect, test } from "vitest";
 import { buildMatrixScaffold } from "../../src/matrix";
-import { makeVersionInfoBits, writeVersionInfoBits } from "../../src/mask/version-info";
+import {
+	makeVersionInfoBits,
+	writeVersionInfoBits,
+} from "../../src/mask/version-info";
 
 const readVersionBlocks = (matrix: ReturnType<typeof buildMatrixScaffold>) => {
 	const size = matrix.size;
@@ -13,10 +16,10 @@ const readVersionBlocks = (matrix: ReturnType<typeof buildMatrixScaffold>) => {
 	}
 
 	const bottomLeft: string[] = [];
-	for (let r = start; r < start + 3; r++) {
-		for (let c = 0; c < 6; c++) {
-			bottomLeft.push(String(matrix.values[r][c]));
-		}
+	for (let i = 0; i < 18; i++) {
+		const row = Math.floor(i / 3);
+		const col = start + (i % 3);
+		bottomLeft.push(String(matrix.values[col][row]));
 	}
 
 	return {
@@ -25,12 +28,15 @@ const readVersionBlocks = (matrix: ReturnType<typeof buildMatrixScaffold>) => {
 	};
 };
 
+const toRowMajorBitString = (bits: number): string =>
+	Array.from({ length: 18 }, (_, idx) =>
+		((bits >> idx) & 1) === 1 ? "1" : "0",
+	).join("");
+
 describe("version info placement", () => {
 	test("version 22 writes the expected 18-bit pattern in both locations", () => {
 		const version = 22;
-		const expectedBits = makeVersionInfoBits(version)
-			.toString(2)
-			.padStart(18, "0");
+		const expectedBits = toRowMajorBitString(makeVersionInfoBits(version));
 		const matrix = buildMatrixScaffold(version);
 		writeVersionInfoBits(matrix, version);
 
