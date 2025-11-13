@@ -1,6 +1,9 @@
 import { describe, expect, test } from "vitest";
-import { makeFormatInfoBits, writeFormatInfo } from "../src/matrix/format";
-import { buildScaffoldV1 } from "../src/matrix/build";
+import {
+	makeFormatInfoBits,
+	writeFormatInfoBits as writeFormatInfo,
+} from "../src/mask/format-info";
+import { buildMatrixScaffold } from "../src/matrix";
 
 const bitsToString = (bits: number): string =>
 	bits.toString(2).padStart(15, "0");
@@ -44,7 +47,7 @@ describe("format info encoding", () => {
 	});
 
 	test("writeFormatInfo stamps both copies with identical bits", () => {
-		const m = buildScaffoldV1();
+		const m = buildMatrixScaffold(1);
 		const formatBits = makeFormatInfoBits("L", 0);
 		writeFormatInfo(m, formatBits);
 

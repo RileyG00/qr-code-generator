@@ -2,9 +2,7 @@ import { prepareCodewords as prepareGenericCodewords } from "./encoder";
 import { QROptions, QRCodewords } from "./types";
 import { V1_SIZE } from "./constants/v1l";
 import { buildMatrixV1L_Unmasked } from "./matrix/v1l";
-import { chooseBestMask } from "./mask/mask-score";
-import { makeFormatInfoBits, writeFormatInfo } from "./matrix/format";
-import { writeVersionInfo } from "./matrix/version";
+import { finalizeMatrix } from "./mask";
 import type { MaskId, QrMatrix } from "./mask/types";
 
 export const prepareCodewords = prepareGenericCodewords;
@@ -46,21 +44,14 @@ export const buildV1LMatrix = (
 			...prepared.eccCodewords,
 		]);
 	const baseMatrix = buildMatrixV1L_Unmasked(Uint8Array.from(all));
-	writeVersionInfo(baseMatrix, prepared.version);
 
-	const decorator = (candidate: QrMatrix, maskId: MaskId) => {
-		const bits = makeFormatInfoBits(prepared.ecc, maskId);
-		writeFormatInfo(candidate, bits);
-	};
+	const { maskId, matrix, score, formatBits } = finalizeMatrix(
+		baseMatrix as QrMatrix,
+		prepared.version,
+		prepared.ecc,
+	);
 
-	const { maskId, matrix, score } = chooseBestMask(baseMatrix as QrMatrix, {
-		decorateCandidate: decorator,
-	});
-
-	const formatBits = makeFormatInfoBits(prepared.ecc, maskId);
-	writeFormatInfo(matrix, formatBits);
-
-return { matrix, maskId, formatBits, score };
+	return { matrix, maskId, formatBits, score };
 };
 
 export { renderSvg, type SvgRenderOptions } from "./render/svg";
