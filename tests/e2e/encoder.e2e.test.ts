@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { encodeToMatrix, encodeToSvg } from "../../src";
+import { encodeToMatrix, encodeToSvg, prepareCodewords } from "../../src";
+import { getVersionCapacity } from "../../src/metadata/capacity";
 
 const assertFilled = (size: number, rows: (0 | 1 | null)[][]) => {
 	for (let r = 0; r < size; r++) {
@@ -90,4 +91,17 @@ describe("encodeToMatrix", () => {
 			/no version/i,
 		);
 	});
+});
+
+test("large payload stays within metadata capacity and fills the matrix", () => {
+	const payload = "LargePayload-".repeat(40);
+	const prepared = prepareCodewords(payload);
+	const info = getVersionCapacity(prepared.version);
+	expect(prepared.interleavedCodewords.length).toBe(info.totalCodewords);
+
+	const result = encodeToMatrix(payload);
+	expect(result.version).toBe(prepared.version);
+	expect(result.ecc).toBe(prepared.ecc);
+	expect(result.matrix.size).toBe(17 + 4 * result.version);
+	assertFilled(result.matrix.size, result.matrix.values);
 });

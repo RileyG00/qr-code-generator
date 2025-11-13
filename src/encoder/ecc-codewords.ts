@@ -22,14 +22,29 @@ export const buildCodewordBlocks = (
 		);
 	}
 
-	const blocks: CodewordBlock[] = [];
-	const numLongBlocks = expectedData % numBlocks;
-	const shortBlockLength = Math.floor(expectedData / numBlocks);
+	const totalCodewords = versionInfo.totalCodewords;
+	const numLongBlocks = totalCodewords % numBlocks;
+	const numShortBlocks = numBlocks - numLongBlocks;
+	const shortBlockLength = Math.floor(totalCodewords / numBlocks);
 	const longBlockLength = shortBlockLength + 1;
+	const shortDataLength = shortBlockLength - eccCodewordsPerBlock;
+	const longDataLength = longBlockLength - eccCodewordsPerBlock;
+
+	const computedDataTotal =
+		shortDataLength * numShortBlocks +
+		longDataLength * (numBlocks - numShortBlocks);
+	if (computedDataTotal !== expectedData) {
+		throw new Error(
+			`Computed data distribution ${computedDataTotal} does not match expected ${expectedData} for version ${versionInfo.version} level ${eccLevel}.`,
+		);
+	}
+
+	const blocks: CodewordBlock[] = [];
 
 	let offset = 0;
 	for (let i = 0; i < numBlocks; i++) {
-		const dataLength = i < numLongBlocks ? longBlockLength : shortBlockLength;
+		const dataLength =
+			i < numShortBlocks ? shortDataLength : longDataLength;
 		const data = sliceData(dataCodewords, offset, dataLength);
 		offset += dataLength;
 		const ecc = rsEncode(gf, data, eccCodewordsPerBlock);
