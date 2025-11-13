@@ -4,7 +4,8 @@
 	"description": "",
 	"main": "index.js",
 	"scripts": {
-		"test": "vitest run"
+		"test": "vitest run",
+		"render:svg": "tsup dev/dev.ts --format esm --splitting false --out-dir dev --no-dts && node dev/dev.js"
 	},
 	"repository": {
 		"type": "git",
