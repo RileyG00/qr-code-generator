@@ -7,7 +7,7 @@ describe("Generic encoder blocks (ECC L)", () => {
 		const payload = "ABCDEFGHIJKLMNOPQRSTUVWX".repeat(4); // 96 bytes
 		const version = 6;
 		const ecc = "L";
-		const plan = prepareCodewords(payload, { version, ecc });
+		const plan = prepareCodewords(payload, { version, ecc, mode: "byte" });
 		const info = getVersionCapacity(version);
 		const levelInfo = info.levels[ecc];
 

@@ -42,10 +42,12 @@ export type VersionNumber =
 
 export type EccLevel = "L" | "M" | "Q" | "H";
 
+export type QRMode = "byte" | "alphanumeric";
+
 export interface QROptions {
 	version?: VersionNumber;
 	ecc?: EccLevel;
-	mode?: "byte";
+	mode?: QRMode;
 	minVersion?: VersionNumber;
 	maxVersion?: VersionNumber;
 }
@@ -60,7 +62,7 @@ export interface CodewordBlock {
 export interface QRCodewords {
 	version: VersionNumber;
 	ecc: EccLevel;
-	mode: "byte";
+	mode: QRMode;
 	dataCodewords: Uint8Array;
 	eccCodewords: Uint8Array;
 	interleavedCodewords: Uint8Array;

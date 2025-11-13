@@ -1,10 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { encodeToMatrix, prepareCodewords } from "../../src";
 import type { EccLevel, VersionNumber } from "../../src/types";
-import {
-	getByteModeCharCountBits,
-	getVersionCapacity,
-} from "../../src/metadata/capacity";
+import { getCharCountBits, getVersionCapacity } from "../../src/metadata/capacity";
 
 const ECC_LEVELS: readonly EccLevel[] = ["L", "M", "Q", "H"];
 const MODE_INDICATOR_BITS = 4;
@@ -16,7 +13,7 @@ const getMaxPayloadLength = (
 	const info = getVersionCapacity(version);
 	const level = info.levels[ecc];
 	const dataBits = level.dataCodewords * 8;
-	const headerBits = MODE_INDICATOR_BITS + getByteModeCharCountBits(version);
+	const headerBits = MODE_INDICATOR_BITS + getCharCountBits("byte", version);
 	const usableBits = Math.max(0, dataBits - headerBits);
 	return Math.floor(usableBits / 8);
 };
@@ -37,6 +34,7 @@ describe("Byte-mode capacity sweep across versions 1-40 and all ECC levels", () 
 				const plan = prepareCodewords(payload, {
 					version: typedVersion,
 					ecc,
+					mode: "byte",
 				});
 
 				expect(plan.version).toBe(typedVersion);
@@ -52,6 +50,7 @@ describe("Byte-mode capacity sweep across versions 1-40 and all ECC levels", () 
 					ecc,
 					minVersion: typedVersion,
 					maxVersion: typedVersion,
+					mode: "byte",
 				});
 
 				expect(matrix.version).toBe(typedVersion);
@@ -67,6 +66,7 @@ describe("Byte-mode capacity sweep across versions 1-40 and all ECC levels", () 
 					prepareCodewords(overPayload, {
 						version: typedVersion,
 						ecc,
+						mode: "byte",
 					}),
 				).toThrow();
 
@@ -75,8 +75,9 @@ describe("Byte-mode capacity sweep across versions 1-40 and all ECC levels", () 
 						ecc,
 						minVersion: typedVersion,
 						maxVersion: typedVersion,
+						mode: "byte",
 					}),
-				).toThrow(/no version|does not fit/i);
+				).toThrow(/no version|does not fit|cannot fit/i);
 			});
 		}
 	}

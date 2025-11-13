@@ -1,4 +1,4 @@
-import type { EccLevel, VersionNumber } from "../types";
+import type { EccLevel, QRMode, VersionNumber } from "../types";
 
 export interface EccBlockCapacity {
 	dataCodewords: number;
@@ -148,26 +148,46 @@ export const getVersionCapacity = (version: VersionNumber): VersionCapacity => {
 	return entry;
 };
 
-export const getByteModeCharCountBits = (version: VersionNumber): number =>
-	version <= 9 ? 8 : 16;
+export const getCharCountBits = (
+	mode: QRMode,
+	version: VersionNumber,
+): number => {
+	if (mode === "alphanumeric") {
+		if (version <= 9) return 9;
+		if (version <= 26) return 11;
+		return 13;
+	}
 
-export const getByteModeCharCountLimit = (version: VersionNumber): number =>
-	(1 << getByteModeCharCountBits(version)) - 1;
+	return version <= 9 ? 8 : 16;
+};
 
-export const canFitByteModePayload = (
-	byteLength: number,
+const getCharCountLimit = (mode: QRMode, version: VersionNumber): number =>
+	(1 << getCharCountBits(mode, version)) - 1;
+
+const getPayloadBitLength = (mode: QRMode, length: number): number => {
+	if (mode === "alphanumeric") {
+		const pairs = Math.floor(length / 2);
+		const hasOdd = length % 2 === 1;
+		return pairs * 11 + (hasOdd ? 6 : 0);
+	}
+
+	return length * 8;
+};
+
+export const canFitPayload = (
+	mode: QRMode,
+	inputLength: number,
 	versionInfo: VersionCapacity,
 	ecc: EccLevel,
 ): boolean => {
-	if (byteLength > getByteModeCharCountLimit(versionInfo.version)) {
+	if (inputLength > getCharCountLimit(mode, versionInfo.version)) {
 		return false;
 	}
 
 	const capacityBits = versionInfo.levels[ecc].dataCodewords * 8;
+	const charCountBits = getCharCountBits(mode, versionInfo.version);
 	let bitsUsed =
-		MODE_INDICATOR_BITS +
-		getByteModeCharCountBits(versionInfo.version) +
-		byteLength * 8;
+		MODE_INDICATOR_BITS + charCountBits + getPayloadBitLength(mode, inputLength);
 
 	if (bitsUsed > capacityBits) {
 		return false;
@@ -184,19 +204,12 @@ export const canFitByteModePayload = (
 };
 
 export const selectVersionAndEcc = (
-	inputBitLength: number,
-	mode: "byte",
+	mode: QRMode,
+	inputLength: number,
 	options?: SelectionOptions,
 ): { version: VersionNumber; ecc: EccLevel } => {
-	if (mode !== "byte") {
-		throw new Error(`Unsupported mode "${mode}". Only byte mode is implemented.`);
-	}
-	if (inputBitLength < 0) {
-		throw new Error("inputBitLength must be non-negative.");
-	}
-
-	if (inputBitLength % 8 !== 0) {
-		throw new Error("byte mode inputBitLength must be a multiple of 8.");
+	if (inputLength < 0) {
+		throw new Error("inputLength must be non-negative.");
 	}
 
 	const minVersion = options?.minVersion ?? 1;
@@ -210,7 +223,6 @@ export const selectVersionAndEcc = (
 		);
 	}
 
-	const requiredBytes = inputBitLength / 8;
 	const allowedVersions = VERSION_CAPACITIES.filter(
 		(info) => info.version >= minVersion && info.version <= maxVersion,
 	);
@@ -220,7 +232,7 @@ export const selectVersionAndEcc = (
 
 	for (const versionInfo of allowedVersions) {
 		for (const ecc of eccLevels) {
-			if (canFitByteModePayload(requiredBytes, versionInfo, ecc)) {
+			if (canFitPayload(mode, inputLength, versionInfo, ecc)) {
 				return { version: versionInfo.version, ecc };
 			}
 		}
@@ -228,6 +240,6 @@ export const selectVersionAndEcc = (
 
 	const eccLabel = options?.ecc ?? "any";
 	throw new RangeError(
-		`Input requires ${inputBitLength} bits (byte mode), but no version between ${minVersion} and ${maxVersion} with ECC ${eccLabel} can fit.`,
+		`Input of ${inputLength} characters in mode ${mode} cannot fit in any version between ${minVersion} and ${maxVersion} with ECC ${eccLabel}.`,
 	);
 };

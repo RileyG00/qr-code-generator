@@ -31,7 +31,14 @@ const isByteBuffer = (x: unknown): x is number[] | Uint8Array =>
 
 const encodeV1LData = (text: string): number[] => {
 	const versionInfo = getVersionCapacity(1);
-	return Array.from(makeDataCodewords(encodeUtf8(text), versionInfo, "L"));
+	const bytes = encodeUtf8(text);
+	return Array.from(
+		makeDataCodewords(
+			{ mode: "byte", bytes, length: bytes.length },
+			versionInfo,
+			"L",
+		),
+	);
 };
 
 describe("V1-L byte-mode data codewords", () => {
@@ -137,8 +144,8 @@ describe("prepareV1L end-to-end assembly", () => {
 	});
 
 	test("prepareCodewords auto-selects larger version for long payloads", () => {
-		const payload = "X".repeat(200);
-		const result = prepareCodewords(payload);
+	const payload = "X".repeat(200);
+	const result = prepareCodewords(payload, { mode: "byte" });
 		expect(result.version).toBeGreaterThan(1);
 		expect(result.dataCodewords.length).toBe(
 			getVersionCapacity(result.version).levels[result.ecc].dataCodewords,
@@ -152,7 +159,7 @@ describe("prepareV1L end-to-end assembly", () => {
 
 describe("V1-L matrix selection", () => {
 	test("encodeToMatrix stays on version 1-L for short payloads", () => {
-		const result = encodeToMatrix("HELLO", { ecc: "L" });
+		const result = encodeToMatrix("HELLO", { ecc: "L", mode: "byte" });
 		expect(result.version).toBe(1);
 		expect(result.ecc).toBe("L");
 		expect(result.matrix.size).toBe(21);
@@ -163,8 +170,13 @@ describe("V1-L matrix selection", () => {
 	test("forcing version 1 rejects payloads beyond the V1-L capacity", () => {
 		const payload = "A".repeat(18);
 		expect(() =>
-			encodeToMatrix(payload, { ecc: "L", minVersion: 1, maxVersion: 1 }),
-		).toThrow(/no version/i);
+			encodeToMatrix(payload, {
+				ecc: "L",
+				minVersion: 1,
+				maxVersion: 1,
+				mode: "byte",
+			}),
+		).toThrow(/no version|cannot fit/i);
 	});
 });
 

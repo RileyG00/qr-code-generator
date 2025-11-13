@@ -8,8 +8,16 @@ const V1_INFO = getVersionCapacity(1);
 const V1_Q = V1_INFO.levels.Q;
 const MAX_V1_Q_PAYLOAD = Math.floor((V1_Q.dataCodewords * 8 - 12) / 8);
 
-const encodeV1QData = (text: string): number[] =>
-	Array.from(makeDataCodewords(encodeUtf8(text), V1_INFO, "Q"));
+const encodeV1QData = (text: string): number[] => {
+	const bytes = encodeUtf8(text);
+	return Array.from(
+		makeDataCodewords(
+			{ mode: "byte", bytes, length: bytes.length },
+			V1_INFO,
+			"Q",
+		),
+	);
+};
 
 describe("V1-Q byte-mode payload handling", () => {
 	test("11-byte payload fills all 13 data codewords", () => {
@@ -19,7 +27,7 @@ describe("V1-Q byte-mode payload handling", () => {
 		expect(MAX_V1_Q_PAYLOAD).toBe(11);
 		expect(codewords).toHaveLength(V1_Q.dataCodewords);
 
-		const plan = prepareCodewords(payload, { version: 1, ecc: "Q" });
+		const plan = prepareCodewords(payload, { version: 1, ecc: "Q", mode: "byte" });
 		expect(plan.version).toBe(1);
 		expect(plan.ecc).toBe("Q");
 		expect(plan.dataCodewords.length).toBe(V1_Q.dataCodewords);
@@ -31,14 +39,14 @@ describe("V1-Q byte-mode payload handling", () => {
 	test("12-byte payload does not fit in V1-Q", () => {
 		const overCapacity = "B".repeat(MAX_V1_Q_PAYLOAD + 1);
 		expect(() =>
-			prepareCodewords(overCapacity, { version: 1, ecc: "Q" }),
+			prepareCodewords(overCapacity, { version: 1, ecc: "Q", mode: "byte" }),
 		).toThrow(/does not fit/i);
 	});
 });
 
 describe("V1-Q matrix selection", () => {
 	test("encodeToMatrix stays within version 1 when possible", () => {
-		const result = encodeToMatrix("Short text", { ecc: "Q" });
+		const result = encodeToMatrix("Short text", { ecc: "Q", mode: "byte" });
 		expect(result.version).toBe(1);
 		expect(result.ecc).toBe("Q");
 	});
@@ -46,7 +54,12 @@ describe("V1-Q matrix selection", () => {
 	test("forcing version 1 fails once payload exceeds Q capacity", () => {
 		const payload = "C".repeat(MAX_V1_Q_PAYLOAD + 2);
 		expect(() =>
-			encodeToMatrix(payload, { ecc: "Q", minVersion: 1, maxVersion: 1 }),
-		).toThrow(/no version/i);
+			encodeToMatrix(payload, {
+				ecc: "Q",
+				minVersion: 1,
+				maxVersion: 1,
+				mode: "byte",
+			}),
+		).toThrow(/no version|cannot fit/i);
 	});
 });

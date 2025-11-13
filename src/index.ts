@@ -51,7 +51,7 @@ export const encodeToSvg = (
 };
 
 export const prepareV1L = (input: string, _opts?: QROptions): QRCodewords =>
-	prepareCodewords(input, { version: 1, ecc: "L" });
+	prepareCodewords(input, { version: 1, ecc: "L", mode: "byte" });
 
 export const prepareV1LWithEcc = (
 	input: string,

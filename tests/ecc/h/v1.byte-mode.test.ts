@@ -8,8 +8,16 @@ const V1_INFO = getVersionCapacity(1);
 const V1_H = V1_INFO.levels.H;
 const MAX_V1_H_PAYLOAD = Math.floor((V1_H.dataCodewords * 8 - 12) / 8);
 
-const encodeV1HData = (text: string): number[] =>
-	Array.from(makeDataCodewords(encodeUtf8(text), V1_INFO, "H"));
+const encodeV1HData = (text: string): number[] => {
+	const bytes = encodeUtf8(text);
+	return Array.from(
+		makeDataCodewords(
+			{ mode: "byte", bytes, length: bytes.length },
+			V1_INFO,
+			"H",
+		),
+	);
+};
 
 describe("V1-H byte-mode payload handling", () => {
 	test("7-byte payload fits and uses 9 data codewords", () => {
@@ -19,7 +27,7 @@ describe("V1-H byte-mode payload handling", () => {
 		expect(MAX_V1_H_PAYLOAD).toBe(7);
 		expect(codewords).toHaveLength(V1_H.dataCodewords);
 
-		const plan = prepareCodewords(payload, { version: 1, ecc: "H" });
+		const plan = prepareCodewords(payload, { version: 1, ecc: "H", mode: "byte" });
 		expect(plan.version).toBe(1);
 		expect(plan.ecc).toBe("H");
 		expect(plan.dataCodewords.length).toBe(V1_H.dataCodewords);
@@ -31,21 +39,21 @@ describe("V1-H byte-mode payload handling", () => {
 	test("8-byte payload cannot fit within V1-H", () => {
 		const overCapacity = "B".repeat(MAX_V1_H_PAYLOAD + 1);
 		expect(() =>
-			prepareCodewords(overCapacity, { version: 1, ecc: "H" }),
+			prepareCodewords(overCapacity, { version: 1, ecc: "H", mode: "byte" }),
 		).toThrow(/does not fit/i);
 	});
 });
 
 describe("V1-H matrix selection", () => {
 	test("encodeToMatrix returns version 1 for payloads within H capacity", () => {
-		const result = encodeToMatrix("HELLO!", { ecc: "H" });
+		const result = encodeToMatrix("HELLO!", { ecc: "H", mode: "byte" });
 		expect(result.version).toBe(1);
 		expect(result.ecc).toBe("H");
 	});
 
 	test("encodeToMatrix promotes for larger payloads with ECC H", () => {
 		const payload = "C".repeat(MAX_V1_H_PAYLOAD + 3);
-		const result = encodeToMatrix(payload, { ecc: "H" });
+		const result = encodeToMatrix(payload, { ecc: "H", mode: "byte" });
 		expect(result.version).toBeGreaterThan(1);
 		expect(result.ecc).toBe("H");
 	});
@@ -63,11 +71,15 @@ describe("Comparative ECC H behavior", () => {
 
 	test("Tighter version constraints can reject ECC H even when ECC L fits", () => {
 		const payload = "A".repeat(28);
-		const fits = encodeToMatrix(payload, { ecc: "L", maxVersion: 2 });
+		const fits = encodeToMatrix(payload, {
+			ecc: "L",
+			maxVersion: 2,
+			mode: "byte",
+		});
 		expect(fits.version).toBeLessThanOrEqual(2);
 
 		expect(() =>
-			encodeToMatrix(payload, { ecc: "H", maxVersion: 2 }),
-		).toThrow(/no version/i);
+			encodeToMatrix(payload, { ecc: "H", maxVersion: 2, mode: "byte" }),
+		).toThrow(/no version|cannot fit/i);
 	});
 });

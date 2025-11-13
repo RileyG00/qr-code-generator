@@ -1,8 +1,17 @@
-import type { EccLevel } from "../types";
+import type { EccLevel, QRMode } from "../types";
 import type { VersionCapacity } from "../metadata/capacity";
-import { getByteModeCharCountBits } from "../metadata/capacity";
+import { getCharCountBits } from "../metadata/capacity";
 
-const MODE_INDICATOR_BYTE = 0b0100;
+const MODE_INDICATORS: Record<QRMode, number> = {
+	byte: 0b0100,
+	alphanumeric: 0b0010,
+};
+
+const ALPHANUMERIC_CHARSET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
+const ALPHANUMERIC_LOOKUP = new Map(
+	ALPHANUMERIC_CHARSET.split("").map((char, idx) => [char, idx]),
+);
+
 const PAD_BYTES = [0xec, 0x11];
 
 const toBits = (value: number, width: number): number[] => {
@@ -22,30 +31,55 @@ const bitsToBytes = (bits: number[]): Uint8Array => {
 	return out;
 };
 
+export type EncodedPayload =
+	| { mode: "byte"; bytes: Uint8Array; length: number }
+	| { mode: "alphanumeric"; text: string; length: number };
+
+const appendAlphanumericBits = (bits: number[], text: string): void => {
+	for (let i = 0; i < text.length; i += 2) {
+		const first = ALPHANUMERIC_LOOKUP.get(text[i]);
+		if (first === undefined) {
+			throw new Error(`Character "${text[i]}" is not valid in alphanumeric mode.`);
+		}
+
+		if (i + 1 < text.length) {
+			const second = ALPHANUMERIC_LOOKUP.get(text[i + 1]);
+			if (second === undefined) {
+				throw new Error(`Character "${text[i + 1]}" is not valid in alphanumeric mode.`);
+			}
+			bits.push(...toBits(first * 45 + second, 11));
+		} else {
+			bits.push(...toBits(first, 6));
+		}
+	}
+};
+
 export const makeDataCodewords = (
-	payload: Uint8Array,
+	payload: EncodedPayload,
 	versionInfo: VersionCapacity,
 	eccLevel: EccLevel,
 ): Uint8Array => {
 	const dataCapacityBytes = versionInfo.levels[eccLevel].dataCodewords;
 	const dataCapacityBits = dataCapacityBytes * 8;
-	const charCountBits = getByteModeCharCountBits(versionInfo.version);
+	const charCountBits = getCharCountBits(payload.mode, versionInfo.version);
 	const maxChars = (1 << charCountBits) - 1;
 
 	if (payload.length > maxChars) {
 		throw new RangeError(
-			`Payload of ${payload.length} bytes exceeds byte-mode capacity for version ${versionInfo.version}.`,
+			`Payload of ${payload.length} characters exceeds ${payload.mode} capacity for version ${versionInfo.version}.`,
 		);
 	}
 
 	const bits: number[] = [];
-	// Mode indicator
-	bits.push(...toBits(MODE_INDICATOR_BYTE, 4));
-	// Character count
+	bits.push(...toBits(MODE_INDICATORS[payload.mode], 4));
 	bits.push(...toBits(payload.length, charCountBits));
-	// Data bytes
-	for (let i = 0; i < payload.length; i++) {
-		bits.push(...toBits(payload[i], 8));
+
+	if (payload.mode === "byte") {
+		for (let i = 0; i < payload.bytes.length; i++) {
+			bits.push(...toBits(payload.bytes[i], 8));
+		}
+	} else {
+		appendAlphanumericBits(bits, payload.text);
 	}
 
 	if (bits.length > dataCapacityBits) {
@@ -55,14 +89,14 @@ export const makeDataCodewords = (
 	}
 
 	const capacityRemaining = dataCapacityBits - bits.length;
-	const terminatorBits = Math.min(4, capacityRemaining);
+	const terminatorBits = Math.min(4, Math.max(0, capacityRemaining));
 	for (let i = 0; i < terminatorBits; i++) bits.push(0);
 
 	while (bits.length % 8 !== 0) bits.push(0);
 
 	if (bits.length > dataCapacityBits) {
 		throw new RangeError(
-			`Byte alignment pushed the payload beyond capacity for version ${versionInfo.version} level ${eccLevel}.`,
+			`Alignment padding pushed the payload beyond capacity for version ${versionInfo.version} level ${eccLevel}.`,
 		);
 	}
 
@@ -84,5 +118,3 @@ export const makeDataCodewords = (
 
 	return codewords;
 };
-
-export { MODE_INDICATOR_BYTE };

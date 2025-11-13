@@ -13,7 +13,7 @@ const assertFilled = (size: number, rows: (0 | 1 | null)[][]) => {
 describe("encodeToMatrix", () => {
 	test("automatically promotes to Version 2 for inputs beyond V1 capacity", () => {
 		const payload = "A".repeat(20);
-		const result = encodeToMatrix(payload);
+		const result = encodeToMatrix(payload, { mode: "byte" });
 		expect(result.version).toBe(2);
 		expect(result.matrix.size).toBe(25);
 	});
@@ -49,7 +49,7 @@ describe("encodeToMatrix", () => {
 
 	test("throws a descriptive error when input exceeds Version 40 capacity", () => {
 		const payload = "X".repeat(5000);
-		expect(() => encodeToMatrix(payload)).toThrow(/no version/i);
+		expect(() => encodeToMatrix(payload)).toThrow(/no version|cannot fit/i);
 	});
 
 	test("throws when minVersion is greater than maxVersion", () => {
@@ -61,7 +61,7 @@ describe("encodeToMatrix", () => {
 	test("throws when constraints forbid a fitting version", () => {
 		const payload = "B".repeat(40);
 		expect(() => encodeToMatrix(payload, { maxVersion: 1 })).toThrow(
-			/no version/i,
+			/no version|cannot fit/i,
 		);
 	});
 });
@@ -77,4 +77,25 @@ test("large payload stays within metadata capacity and fills the matrix", () => 
 	expect(result.ecc).toBe(prepared.ecc);
 	expect(result.matrix.size).toBe(17 + 4 * result.version);
 	assertFilled(result.matrix.size, result.matrix.values);
+});
+
+test("auto-detects alphanumeric mode to reduce the required version", () => {
+	const payload = "A".repeat(1092);
+	const autoPlan = prepareCodewords(payload);
+	const forcedByte = prepareCodewords(payload, { mode: "byte" });
+
+	expect(autoPlan.mode).toBe("alphanumeric");
+	expect(autoPlan.version).toBeLessThan(forcedByte.version);
+
+	const autoMatrix = encodeToMatrix(payload);
+	const forcedMatrix = encodeToMatrix(payload, { mode: "byte" });
+	expect(autoMatrix.version).toBe(autoPlan.version);
+	expect(forcedMatrix.version).toBe(forcedByte.version);
+	expect(autoMatrix.version).toBeLessThan(forcedMatrix.version);
+});
+
+test("forcing alphanumeric mode with unsupported characters throws", () => {
+	expect(() =>
+		prepareCodewords("mixedCase123", { mode: "alphanumeric" }),
+	).toThrow(/alphanumeric set/i);
 });

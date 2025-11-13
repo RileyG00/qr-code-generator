@@ -1,11 +1,17 @@
-import type { QROptions, QRCodewords, EccLevel, VersionNumber } from "../types";
+import type {
+	EccLevel,
+	QRCodewords,
+	QROptions,
+	QRMode,
+	VersionNumber,
+} from "../types";
 import {
-	canFitByteModePayload,
+	canFitPayload,
 	getVersionCapacity,
 	selectVersionAndEcc,
 } from "../metadata/capacity";
 import { encodeUtf8 } from "./byte-mode";
-import { makeDataCodewords } from "./data-codewords";
+import { makeDataCodewords, type EncodedPayload } from "./data-codewords";
 import {
 	buildCodewordBlocks,
 	concatEccFromBlocks,
@@ -13,15 +19,30 @@ import {
 } from "./ecc-codewords";
 
 const DEFAULT_ECC: EccLevel = "L";
+const ALPHANUMERIC_CHARSET = /^[-$%*+./:0-9A-Z ]*$/;
 
-const resolveVersionAndEcc = (
-	byteLength: number,
-	opts?: QROptions,
-): { version: VersionNumber; ecc: EccLevel } => {
-	if (opts?.mode && opts.mode !== "byte") {
-		throw new Error(`Unsupported mode "${opts.mode}". Only byte mode is implemented.`);
+const resolveMode = (input: string, opts?: QROptions): QRMode => {
+	if (opts?.mode) {
+		if (opts.mode === "byte") return "byte";
+		if (opts.mode === "alphanumeric") {
+			if (!ALPHANUMERIC_CHARSET.test(input)) {
+				throw new Error("Input contains characters outside the QR alphanumeric set.");
+			}
+			return "alphanumeric";
+		}
+		throw new Error(
+			`Unsupported mode "${opts.mode}". Only "byte" and "alphanumeric" are implemented.`,
+		);
 	}
 
+	return ALPHANUMERIC_CHARSET.test(input) ? "alphanumeric" : "byte";
+};
+
+const resolveVersionAndEcc = (
+	mode: QRMode,
+	inputLength: number,
+	opts?: QROptions,
+): { version: VersionNumber; ecc: EccLevel } => {
 	const minVersion = opts?.minVersion ?? 1;
 	const maxVersion = opts?.maxVersion ?? 40;
 	if (minVersion > maxVersion) {
@@ -40,16 +61,15 @@ const resolveVersionAndEcc = (
 		const version = opts.version;
 		const ecc: EccLevel = opts.ecc ?? DEFAULT_ECC;
 		const info = getVersionCapacity(version);
-		if (!canFitByteModePayload(byteLength, info, ecc)) {
+		if (!canFitPayload(mode, inputLength, info, ecc)) {
 			throw new RangeError(
-				`Payload of ${byteLength} bytes does not fit in version ${version} level ${ecc}.`,
+				`Payload of ${inputLength} characters does not fit in version ${version} level ${ecc} for mode ${mode}.`,
 			);
 		}
 		return { version, ecc };
 	}
 
-	const bits = byteLength * 8;
-	return selectVersionAndEcc(bits, "byte", {
+	return selectVersionAndEcc(mode, inputLength, {
 		minVersion,
 		maxVersion,
 		ecc: opts?.ecc,
@@ -57,11 +77,20 @@ const resolveVersionAndEcc = (
 };
 
 export const prepareCodewords = (input: string, opts?: QROptions): QRCodewords => {
-	const payload = encodeUtf8(input);
-	const { version, ecc } = resolveVersionAndEcc(payload.length, opts);
+	const mode = resolveMode(input, opts);
+	let encoded: EncodedPayload;
+	if (mode === "byte") {
+		const bytes = encodeUtf8(input);
+		encoded = { mode: "byte", bytes, length: bytes.length };
+	} else {
+		encoded = { mode: "alphanumeric", text: input, length: input.length };
+	}
+
+	const payloadLength = encoded.length;
+	const { version, ecc } = resolveVersionAndEcc(mode, payloadLength, opts);
 	const versionInfo = getVersionCapacity(version);
 
-	const dataCodewords = makeDataCodewords(payload, versionInfo, ecc);
+	const dataCodewords = makeDataCodewords(encoded, versionInfo, ecc);
 	const blocks = buildCodewordBlocks(dataCodewords, versionInfo, ecc);
 	const eccCodewords = concatEccFromBlocks(blocks);
 	const interleaved = interleaveCodewordBlocks(blocks);
@@ -69,7 +98,7 @@ export const prepareCodewords = (input: string, opts?: QROptions): QRCodewords =
 	return {
 		version,
 		ecc,
-		mode: "byte",
+		mode,
 		dataCodewords,
 		eccCodewords,
 		interleavedCodewords: interleaved,
