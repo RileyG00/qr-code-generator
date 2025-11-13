@@ -81,3 +81,26 @@ describe("Byte-mode capacity sweep across versions 1-40 and all ECC levels", () 
 		}
 	}
 });
+
+describe("Long payload matrix selection", () => {
+	const LONG_PAYLOAD = (
+		"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed vitae urna nec sapien tincidunt dignissim. Quisque vehicula nunc mattis hendrerit et eget efficitur mauris est sed purus. "
+	).repeat(5);
+
+	test("ensure baseline sample length is at least 500 chars", () => {
+		expect(LONG_PAYLOAD.length).toBeGreaterThan(500);
+	});
+
+	for (const ecc of ECC_LEVELS) {
+		test(`encodeToMatrix handles long payloads for ECC ${ecc}`, () => {
+			const result = encodeToMatrix(LONG_PAYLOAD, { ecc });
+			const info = getVersionCapacity(result.version);
+
+			expect(result.version).toBeGreaterThanOrEqual(1);
+			expect(result.matrix.size).toBe(17 + 4 * result.version);
+			expect(result.ecc).toBe(ecc);
+			expect(result.matrix.values.length).toBe(info.size);
+			expect(result.matrix.values.every((row) => row.length === info.size)).toBe(true);
+		});
+	}
+});

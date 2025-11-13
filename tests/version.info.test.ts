@@ -31,19 +31,6 @@ const collectBottomLeft = (size: number): Array<[number, number]> => {
 	return coords;
 };
 
-const collectBottomLeftWriteOrder = (
-	size: number,
-): Array<[number, number]> => {
-	const start = size - 11;
-	const coords: Array<[number, number]> = [];
-	for (let row = 0; row < 6; row++) {
-		for (let col = 0; col < 3; col++) {
-			coords.push([start + col, row]);
-		}
-	}
-	return coords;
-};
-
 describe("version info encoding", () => {
 	test("known version 7 bits match spec table", () => {
 		const bits = makeVersionInfoBits(7);
@@ -89,12 +76,12 @@ describe("version info encoding", () => {
 		writeVersionInfo(m, 7);
 
 		const expected = bitsToString(bits, 18);
-		const topRight = collectTopRight(m.size)
-			.map(([r, c]) => m.values[r][c])
-			.join("");
-		const bottomLeft = collectBottomLeftWriteOrder(m.size)
-			.map(([r, c]) => m.values[r][c])
-			.join("");
+	const topRight = collectTopRight(m.size)
+		.map(([r, c]) => m.values[r][c])
+		.join("");
+	const bottomLeft = collectBottomLeft(m.size)
+		.map(([r, c]) => m.values[r][c])
+		.join("");
 
 		expect(topRight).toBe(expected);
 		expect(bottomLeft).toBe(expected);

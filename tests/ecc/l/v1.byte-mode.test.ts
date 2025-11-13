@@ -184,4 +184,19 @@ describe("byte-mode UTF-8 round trip", () => {
 
 		expect(decodedText).toBe(longPayload);
 	});
+
+	test("very long payload (900+ chars) round-trips through UTF-8 encode/decode", () => {
+		const longPayload =
+			(
+				"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed vitae urna nec sapien tincidunt dignissim. Quisque vehicula nunc mattis hendrerit et eget efficitur mauris est sed purus. "
+			).repeat(5);
+
+		expect(longPayload.length).toBeGreaterThan(500);
+
+		const encodedBytes = encodeUtf8(longPayload);
+		const decoder = new TextDecoder();
+		const decodedText = decoder.decode(encodedBytes);
+
+		expect(decodedText).toBe(longPayload);
+	});
 });

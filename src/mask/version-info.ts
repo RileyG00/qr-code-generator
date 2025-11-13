@@ -28,13 +28,26 @@ export const writeVersionInfoBits = (matrix: Matrix, version: number): void => {
 	if (!shouldApplyVersionInfo(version)) return;
 	const bits = toBitsMSB(makeVersionInfoBits(version), 18);
 	const start = matrix.size - 11;
-	let idx = 0;
+	const topRightCoords: Array<[number, number]> = [];
+	const bottomLeftCoords: Array<[number, number]> = [];
 
 	for (let row = 0; row < 6; row++) {
-		for (let col = 0; col < 3; col++, idx++) {
-			const bit = bits[idx];
-			setModule(matrix, row, start + col, bit, true);
-			setModule(matrix, start + col, row, bit, true);
+		for (let col = 0; col < 3; col++) {
+			topRightCoords.push([row, start + col]);
 		}
+	}
+
+	for (let row = 0; row < 3; row++) {
+		for (let col = 0; col < 6; col++) {
+			bottomLeftCoords.push([start + row, col]);
+		}
+	}
+
+	for (let idx = 0; idx < bits.length; idx++) {
+		const bit = bits[idx];
+		const [trRow, trCol] = topRightCoords[idx];
+		const [blRow, blCol] = bottomLeftCoords[idx];
+		setModule(matrix, trRow, trCol, bit, true);
+		setModule(matrix, blRow, blCol, bit, true);
 	}
 };
