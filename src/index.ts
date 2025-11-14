@@ -1,13 +1,13 @@
 import { prepareCodewords as prepareGenericCodewords } from "./encoder";
 import type { EccLevel, QROptions, VersionNumber } from "./types";
-import { buildMatrix } from "./matrix";
+import { buildMatrix, Matrix } from "./matrix";
 import { finalizeMatrix } from "./mask";
 import type { MaskId, QrMatrix } from "./mask/types";
 import { renderSvg } from "./render/svg";
 import type { SvgRenderOptions } from "./render/svg";
 import { DesignStyleOptions } from "./styleTypes";
 
-interface EncodeMatrixResult {
+export interface EncodeMatrixResult {
 	version: VersionNumber;
 	ecc: EccLevel;
 	maskId: MaskId;
@@ -58,6 +58,12 @@ export const generateQrCode = (
 
 export type { QROptions } from "./types";
 export type { SvgRenderOptions } from "./render/svg";
+export {
+	downloadQrCode,
+	type DownloadQrCodeOptions,
+	type DownloadQrCodeResult,
+	type QrDownloadFormat,
+} from "./download";
 export type {
 	GradientType,
 	HexColor,

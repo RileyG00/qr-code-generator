@@ -74,9 +74,7 @@ interface CornerRadii {
 	bl: number;
 }
 
-const convertFillToColorSettings = (
-	fill: ColorFillConfig,
-): ColorSettings => {
+const convertFillToColorSettings = (fill: ColorFillConfig): ColorSettings => {
 	if (fill.kind === "solid") {
 		return { hexColors: [fill.color as HexColor] };
 	}
@@ -100,10 +98,20 @@ export const renderSvg = (
 	const hasExplicitSize =
 		typeof options.size === "number" && Number.isFinite(options.size);
 	let moduleSize = sanitizeModuleSize(options.moduleSize);
+	const resolvedDotOptions =
+		options.styling?.dotOptions ?? options.styling?.dotOptions;
+	const resolvedCornerSquareOptions =
+		options.styling?.cornerSquareOptions ??
+		options.styling?.cornerSquareOptions;
+	const resolvedCornerDotOptions =
+		options.styling?.cornerDotOptions ?? options.styling?.cornerDotOptions;
+	const resolvedBackgroundOptions =
+		options.styling?.backgroundOptions ??
+		options.styling?.backgroundOptions;
 	const hasCustomStyleSelection =
-		options.styling?.dotOptions?.style !== undefined ||
-		options.styling?.cornerSquareOptions?.style !== undefined ||
-		options.styling?.cornerDotOptions?.style !== undefined;
+		resolvedDotOptions?.style !== undefined ||
+		resolvedCornerSquareOptions?.style !== undefined ||
+		resolvedCornerDotOptions?.style !== undefined;
 	const shapeRendering =
 		options.shapeRendering ??
 		(hasCustomStyleSelection
@@ -111,31 +119,31 @@ export const renderSvg = (
 			: DEFAULT_SHAPE_RENDERING);
 
 	const backgroundFill = resolveBackgroundFill(
-		options.styling?.backgroundOptions,
+		resolvedBackgroundOptions,
 		DEFAULT_BACKGROUND_HEX_COLORS[0],
 	);
 	const dotFillConfig = resolveColorFill(
-		options.styling?.dotOptions,
+		resolvedDotOptions,
 		DEFAULT_FOREGROUND_HEX_COLORS,
 	);
-	const dotStyle = sanitizeDotStyle(options.styling?.dotOptions?.style);
-	const cornerSquareFillConfig = options.styling?.cornerSquareOptions
+	const dotStyle = sanitizeDotStyle(resolvedDotOptions?.style);
+	const cornerSquareFillConfig = resolvedCornerSquareOptions
 		? resolveColorFill(
-				options.styling?.cornerSquareOptions,
+				resolvedCornerSquareOptions,
 				DEFAULT_FOREGROUND_HEX_COLORS,
 			)
 		: undefined;
 	const cornerSquareStyle = sanitizeCornerSquareStyle(
-		options.styling?.cornerSquareOptions?.style,
+		resolvedCornerSquareOptions?.style,
 	);
-	const cornerDotFillConfig = options.styling?.cornerDotOptions
+	const cornerDotFillConfig = resolvedCornerDotOptions
 		? resolveColorFill(
-				options.styling?.cornerDotOptions,
+				resolvedCornerDotOptions,
 				DEFAULT_FOREGROUND_HEX_COLORS,
 			)
 		: undefined;
 	const cornerDotStyle = sanitizeCornerDotStyle(
-		options.styling?.cornerDotOptions?.style,
+		resolvedCornerDotOptions?.style,
 	);
 
 	const modulesWithMargin = matrix.size + marginModules * 2;
@@ -233,7 +241,9 @@ export const renderSvg = (
 			style: dotStyle,
 		},
 		cornerSquareOptions: {
-			...convertFillToColorSettings(cornerSquareFillConfig ?? dotFillConfig),
+			...convertFillToColorSettings(
+				cornerSquareFillConfig ?? dotFillConfig,
+			),
 			style: cornerSquareStyle,
 		},
 		cornerDotOptions: {

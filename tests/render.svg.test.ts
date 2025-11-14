@@ -103,4 +103,20 @@ describe("renderSvg", () => {
 			/<rect x="50" y="50" width="50" height="50" fill="#000000" \/>/,
 		);
 	});
+
+	test("allows direct styling fields on SvgRenderOptions", () => {
+		const matrix = buildMatrix([
+			[1, 0],
+			[1, 1],
+		]);
+
+		const { svg, styling } = renderSvg(matrix, {
+			styling: {
+				dotOptions: { style: "dot" },
+			},
+		});
+
+		expect(svg).toContain('shape-rendering="geometricPrecision"');
+		expect(styling.dotOptions?.style).toBe("dot");
+	});
 });
