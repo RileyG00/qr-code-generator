@@ -1,16 +1,27 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { generateQrCode, SvgRenderOptions } from "../src";
+import {
+	BackgroundOptions,
+	CornerDotOptions,
+	CornerSquareOptions,
+	DotOptions,
+	generateQrCode,
+	SvgRenderOptions,
+} from "../src";
 
 const CURRENT_DIR = dirname(fileURLToPath(import.meta.url));
 const OUTPUT_SVG = join(CURRENT_DIR, "test.svg");
 const DEFAULT_TEXT = "Hello from App";
 
 export const writeTestSvg = (text: string = DEFAULT_TEXT): string => {
+	const dots: DotOptions = {
+		hexColors: ["#092effff", "#2b003aff"],
+	};
+
 	const options: SvgRenderOptions = {
 		shapeRendering: "optimizeSpeed",
-		backgroundColor: "#AAFFCC",
+		dotOptions: dots,
 	};
 
 	const { svg } = generateQrCode(text, undefined, options);

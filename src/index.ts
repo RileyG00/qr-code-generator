@@ -56,3 +56,10 @@ export const generateQrCode = (
 
 export type { QROptions } from "./types";
 export type { SvgRenderOptions } from "./render/svg";
+export type {
+	DotOptions,
+	CornerSquareOptions,
+	CornerDotOptions,
+	BackgroundOptions,
+	ColorSettings,
+} from "./styleTypes";

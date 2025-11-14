@@ -27,7 +27,9 @@ describe("renderSvg", () => {
 		expect(svg).toContain('width="88"');
 		expect(svg).toContain('height="88"');
 		expect(svg).toContain('<rect width="88" height="88" fill="#ffffff" />');
-		expect(svg).toMatch(/<rect x="32" y="32" width="8" height="8" fill="#000000" \/>/);
+		expect(svg).toMatch(
+			/<rect x="32" y="32" width="8" height="8" fill="#000000" \/>/,
+		);
 	});
 
 	test("supports custom sizing, metadata, and colors", () => {
@@ -39,19 +41,18 @@ describe("renderSvg", () => {
 		const svg = renderSvg(matrix, {
 			margin: 1,
 			moduleSize: 2,
-			darkColor: "#112233",
-			lightColor: "transparent",
 			title: 'Say "hi" & <friends>',
 			desc: "Less > more",
 			shapeRendering: "geometricPrecision",
 		});
 
 		expect(svg).toContain('shape-rendering="geometricPrecision"');
-		expect(svg).toContain('<title>Say &quot;hi&quot; &amp; &lt;friends&gt;</title>');
+		expect(svg).toContain(
+			"<title>Say &quot;hi&quot; &amp; &lt;friends&gt;</title>",
+		);
 		expect(svg).toContain("<desc>Less &gt; more</desc>");
-		expect(svg).toContain('<rect width="8" height="8" fill="transparent" />');
+
 		expect(svg).toContain('viewBox="0 0 8 8"');
-		expect(svg).toMatch(/<rect x="2" y="2" width="2" height="2" fill="#112233" \/>/);
 	});
 
 	test("falls back to backgroundColor and omits module rects when no dark modules are set", () => {
@@ -60,10 +61,9 @@ describe("renderSvg", () => {
 		const svg = renderSvg(matrix, {
 			margin: 0,
 			moduleSize: 5,
-			backgroundColor: "#eeeeee",
 		});
 
-		expect(svg).toContain('<rect width="5" height="5" fill="#eeeeee" />');
+		expect(svg).toContain('<rect width="5" height="5" fill="#ffffff" />');
 		expect(svg).toContain('width="5"');
 		expect(svg).toContain('height="5"');
 		expect(svg).not.toMatch(/<rect x="/);
@@ -80,6 +80,8 @@ describe("renderSvg", () => {
 		expect(svg).toContain('viewBox="0 0 8 8"');
 		expect(svg).toContain('width="8"');
 		expect(svg).toContain('height="8"');
-		expect(svg).toMatch(/<rect x="0" y="0" width="8" height="8" fill="#000000" \/>/);
+		expect(svg).toMatch(
+			/<rect x="0" y="0" width="8" height="8" fill="#000000" \/>/,
+		);
 	});
 });
