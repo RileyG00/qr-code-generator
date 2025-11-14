@@ -12,8 +12,7 @@ export interface SvgRenderOptions {
 		| "auto"
 		| "geometricPrecision"
 		| "crispEdges"
-		| "optimizeSpeed"
-		| (string & {});
+		| "optimizeSpeed";
 }
 
 const DEFAULT_MARGIN = 4;
