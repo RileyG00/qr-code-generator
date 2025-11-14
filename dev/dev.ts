@@ -15,9 +15,7 @@ const CURRENT_DIR = dirname(fileURLToPath(import.meta.url));
 const OUTPUT_SVG = join(CURRENT_DIR, "test.svg");
 const DEFAULT_TEXT = "Hello from App";
 
-export const writeTestSvg = async (
-	text: string = DEFAULT_TEXT,
-): Promise<string> => {
+export const writeTestSvg = (text: string = DEFAULT_TEXT): string => {
 	const dots: DotOptions = {
 		hexColors: ["#092effff", "#2b003aff"],
 		rotation: 45,
@@ -49,8 +47,6 @@ export const writeTestSvg = async (
 
 	mkdirSync(CURRENT_DIR, { recursive: true });
 	writeFileSync(OUTPUT_SVG, svg, "utf8");
-
-	await downloadQrCode(svg);
 
 	return OUTPUT_SVG;
 };
