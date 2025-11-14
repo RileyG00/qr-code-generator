@@ -23,12 +23,12 @@ describe("renderSvg", () => {
 
 		const svg = renderSvg(matrix);
 
-		expect(svg).toContain('viewBox="0 0 88 88"');
-		expect(svg).toContain('width="88"');
-		expect(svg).toContain('height="88"');
-		expect(svg).toContain('<rect width="88" height="88" fill="#ffffff" />');
+		expect(svg).toContain('viewBox="0 0 40 40"');
+		expect(svg).toContain('width="40"');
+		expect(svg).toContain('height="40"');
+		expect(svg).toContain('<rect width="40" height="40" fill="#ffffff" />');
 		expect(svg).toMatch(
-			/<rect x="32" y="32" width="8" height="8" fill="#000000" \/>/,
+			/<rect x="8" y="8" width="8" height="8" fill="#000000" \/>/,
 		);
 	});
 
@@ -82,6 +82,25 @@ describe("renderSvg", () => {
 		expect(svg).toContain('height="8"');
 		expect(svg).toMatch(
 			/<rect x="0" y="0" width="8" height="8" fill="#000000" \/>/,
+		);
+	});
+
+	test("respects explicit size by deriving module dimensions", () => {
+		const matrix = buildMatrix([
+			[1, 0],
+			[1, 1],
+		]);
+
+		const svg = renderSvg(matrix, {
+			margin: 1,
+			size: 200,
+		});
+
+		expect(svg).toContain('viewBox="0 0 200 200"');
+		expect(svg).toContain('width="200"');
+		expect(svg).toContain('height="200"');
+		expect(svg).toMatch(
+			/<rect x="50" y="50" width="50" height="50" fill="#000000" \/>/,
 		);
 	});
 });

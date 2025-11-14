@@ -24,6 +24,7 @@ import {
 
 export interface SvgRenderOptions {
 	margin?: number;
+	size?: number;
 	moduleSize?: number;
 	backgroundOptions?: BackgroundOptions;
 	dotOptions?: DotOptions;
@@ -40,6 +41,7 @@ export interface SvgRenderOptions {
 
 const DEFAULT_MARGIN = 1;
 const DEFAULT_MODULE_SIZE = 8;
+const DEFAULT_CODE_SIZE = 256;
 const DEFAULT_SHAPE_RENDERING = "crispEdges";
 const FINDER_PATTERN_SIZE = 7;
 const INNER_DOT_START = 2;
@@ -83,7 +85,10 @@ export const renderSvg = (
 	}
 
 	const marginModules = sanitizeMargin(options.margin);
-	const moduleSize = sanitizeModuleSize(options.moduleSize);
+	const sanitizedSize = sanitizeCodeSize(options.size);
+	const hasExplicitSize =
+		typeof options.size === "number" && Number.isFinite(options.size);
+	let moduleSize = sanitizeModuleSize(options.moduleSize);
 	const hasCustomStyleSelection =
 		options.dotOptions?.style !== undefined ||
 		options.cornerSquareOptions?.style !== undefined ||
@@ -123,7 +128,11 @@ export const renderSvg = (
 	);
 
 	const modulesWithMargin = matrix.size + marginModules * 2;
-	const pixelSize = modulesWithMargin * moduleSize;
+	let pixelSize = modulesWithMargin * moduleSize;
+	if (hasExplicitSize) {
+		pixelSize = sanitizedSize;
+		moduleSize = pixelSize / modulesWithMargin;
+	}
 	const viewBox = `0 0 ${pixelSize} ${pixelSize}`;
 	const gradientBounds: GradientBounds = {
 		width: pixelSize,
@@ -491,6 +500,12 @@ const sanitizeMargin = (value: number | undefined): number => {
 	return Math.max(0, Math.floor(value));
 };
 
+const sanitizeCodeSize = (value: number | undefined): number => {
+	if (typeof value !== "number" || !Number.isFinite(value))
+		return DEFAULT_CODE_SIZE;
+	return Math.max(32, Math.floor(value));
+};
+
 const sanitizeModuleSize = (value: number | undefined): number => {
 	if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
 		return DEFAULT_MODULE_SIZE;
@@ -513,4 +528,3 @@ const escapeText = (value: string): string =>
 	String(value).replace(/[&<>"']/g, (char) => ESCAPE_LOOKUP[char]);
 
 const escapeAttribute = (value: string): string => escapeText(value);
-
