@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { TextDecoder } from "node:util";
-import { encodeToMatrix, prepareCodewords, prepareV1L } from "../../../src";
+import { encodeToMatrix, prepareCodewords } from "../../../src";
 import { encodeUtf8 } from "../../../src/encoder/byte-mode";
 import { makeDataCodewords } from "../../../src/encoder/data-codewords";
 import { getVersionCapacity } from "../../../src/metadata/capacity";
@@ -40,6 +40,9 @@ const encodeV1LData = (text: string): number[] => {
 		),
 	);
 };
+
+const prepareV1LCodewords = (text: string) =>
+	prepareCodewords(text, { version: 1, ecc: "L", mode: "byte" });
 
 describe("V1-L byte-mode data codewords", () => {
 	test("V1-L: HELLO yields 19 data codewords (exact bytes, incl. pad pattern)", () => {
@@ -117,9 +120,9 @@ describe("V1-L byte-mode data codewords", () => {
 	});
 });
 
-describe("prepareV1L end-to-end assembly", () => {
-	test("prepareV1L(HELLO) returns correct sizes for data & ECC", () => {
-		const p = prepareV1L("HELLO");
+describe("prepareCodewords forced to V1-L", () => {
+	test("prepareCodewords returns correct sizes for data & ECC", () => {
+		const p = prepareV1LCodewords("HELLO");
 		// Structural checks
 		expect(isByteBuffer(p.dataCodewords)).toBe(true);
 		expect(isByteBuffer(p.eccCodewords)).toBe(true);
@@ -137,8 +140,8 @@ describe("prepareV1L end-to-end assembly", () => {
 		}
 	});
 
-	test("prepareV1L(HELLO) dataCodewords match the encoder output exactly", () => {
-		const fromPrepare = prepareV1L("HELLO").dataCodewords;
+	test("prepareCodewords dataCodewords match the encoder output exactly", () => {
+		const fromPrepare = prepareV1LCodewords("HELLO").dataCodewords;
 		const fromEncoder = encodeV1LData("HELLO");
 		expect(Array.from(fromPrepare)).toEqual(fromEncoder);
 	});

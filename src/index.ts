@@ -1,8 +1,6 @@
 import { prepareCodewords as prepareGenericCodewords } from "./encoder";
 import type { EccLevel, QRCodewords, QROptions, VersionNumber } from "./types";
-import { V1_SIZE } from "./constants/v1l";
 import { buildMatrix } from "./matrix";
-import { buildMatrixV1L_Unmasked } from "./matrix/v1l";
 import { finalizeMatrix } from "./mask";
 import type { MaskId, QrMatrix } from "./mask/types";
 import { renderSvg, type SvgRenderOptions } from "./render/svg";
@@ -50,51 +48,18 @@ export const encodeToSvg = (
 	return renderSvg(matrix, renderOptions);
 };
 
-export const prepareV1L = (input: string, _opts?: QROptions): QRCodewords =>
-	prepareCodewords(input, { version: 1, ecc: "L", mode: "byte" });
-
-export const prepareV1LWithEcc = (
-	input: string,
-	_opts?: QROptions,
-): QRCodewords & { totalCodewords: number } => {
-	const prepared = prepareV1L(input, _opts);
-	return {
-		...prepared,
-		totalCodewords:
-			prepared.interleavedCodewords.length ??
-			prepared.dataCodewords.length + prepared.eccCodewords.length,
-	};
-};
-
-export const getPlannedMatrixSize = (): number => V1_SIZE;
-
-export interface QRMatrixBuildResult {
-	matrix: QrMatrix;
-	maskId: MaskId;
-	formatBits: number;
-	score: number;
+export interface GenerateQrCodeResult extends EncodeMatrixResult {
+	svg: string;
 }
 
-export const buildV1LMatrix = (
+export const generateQrCode = (
 	input: string,
-	_opts?: QROptions,
-): QRMatrixBuildResult => {
-	const prepared = prepareV1L(input, _opts);
-	const all =
-		prepared.interleavedCodewords ??
-		Uint8Array.from([
-			...prepared.dataCodewords,
-			...prepared.eccCodewords,
-		]);
-	const baseMatrix = buildMatrixV1L_Unmasked(Uint8Array.from(all));
-
-	const { maskId, matrix, score, formatBits } = finalizeMatrix(
-		baseMatrix as QrMatrix,
-		prepared.version,
-		prepared.ecc,
-	);
-
-	return { matrix, maskId, formatBits, score };
+	opts?: QROptions,
+	renderOptions?: SvgRenderOptions,
+): GenerateQrCodeResult => {
+	const result = encodeToMatrix(input, opts);
+	const svg = renderSvg(result.matrix, renderOptions);
+	return { ...result, svg };
 };
 
 export { renderSvg, type SvgRenderOptions } from "./render/svg";

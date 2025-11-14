@@ -75,6 +75,6 @@ export interface QRCodewords {
 }
 
 export interface QRMatrix {
-	size: number; // 21 for V1
+	size: number; // 17 + 4 * version
 	modules: boolean[][]; // true = dark
 }

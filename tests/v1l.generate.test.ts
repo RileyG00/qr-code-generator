@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { buildV1LMatrix } from "../src";
+import { encodeToMatrix, generateQrCode } from "../src";
 import { makeFormatInfoBits } from "../src/mask/format-info";
 
 const formatPositionsLeft: Array<[number, number]> = [
@@ -30,9 +30,13 @@ const formatPositionsRight = (size: number): Array<[number, number]> => {
 const bitsToString = (bits: number): string =>
 	bits.toString(2).padStart(15, "0");
 
-describe("buildV1LMatrix", () => {
+describe("encodeToMatrix version 1", () => {
 	test("produces a fully populated matrix with format info", () => {
-		const { matrix, maskId, formatBits } = buildV1LMatrix("HELLO");
+		const { matrix, maskId, formatBits } = encodeToMatrix("HELLO", {
+			version: 1,
+			ecc: "L",
+			mode: "byte",
+		});
 		expect(matrix.size).toBe(21);
 		expect(formatBits).toBe(makeFormatInfoBits("L", maskId));
 
@@ -51,5 +55,17 @@ describe("buildV1LMatrix", () => {
 			.join("");
 		expect(leftBits).toBe(expected);
 		expect(rightBits).toBe(expected);
+	});
+
+	test("generateQrCode returns svg output alongside matrix metadata", () => {
+		const result = generateQrCode("HELLO", {
+			version: 1,
+			ecc: "L",
+			mode: "byte",
+		});
+		expect(result.matrix.size).toBe(21);
+		expect(result.svg).toContain("<svg");
+		expect(result.svg).toContain("</svg>");
+		expect(result.svg.length).toBeGreaterThan(20);
 	});
 });

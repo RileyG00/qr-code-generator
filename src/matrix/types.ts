@@ -2,7 +2,7 @@ export type Module = 0 | 1; // white/black
 export type MaybeModule = Module | null;
 
 export type Matrix = {
-	size: number; // 21 for V1
+	size: number; // follows 17 + 4 * version sizing
 	values: MaybeModule[][]; // null = unset, 0/1 = set
 	reserved: boolean[][]; // true = function or format area
 };
