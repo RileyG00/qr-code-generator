@@ -11,6 +11,8 @@ import type {
 	DotShapeType,
 	GradientType,
 	HexColor,
+	ImageOptions,
+	ImageShape,
 } from "../styleTypes";
 import {
 	DEFAULT_BACKGROUND_HEX_COLORS,
@@ -20,6 +22,11 @@ import {
 	DEFAULT_DOT_STYLE,
 	DEFAULT_FOREGROUND_HEX_COLORS,
 	DEFAULT_GRADIENT,
+	DEFAULT_IMAGE_OPACITY,
+	DEFAULT_IMAGE_PADDING_MODULES,
+	DEFAULT_IMAGE_SAFE_ZONE_MODULES,
+	DEFAULT_IMAGE_SCALE,
+	DEFAULT_IMAGE_SHAPE,
 	DEFAULT_ROTATION,
 } from "../styleTypes";
 
@@ -44,6 +51,9 @@ const DEFAULT_SHAPE_RENDERING = "crispEdges";
 const FINDER_PATTERN_SIZE = 7;
 const INNER_DOT_START = 2;
 const INNER_DOT_END = 4;
+const MIN_IMAGE_SCALE = 0.05;
+const MAX_IMAGE_SCALE = 0.4;
+const DEFAULT_IMAGE_CORNER_RADIUS_RATIO = 0.25;
 
 type GradientConfig = {
 	colors: readonly HexColor[];
@@ -72,6 +82,47 @@ interface CornerRadii {
 	tr: number;
 	br: number;
 	bl: number;
+}
+
+interface DefinitionRegistry {
+	nextId: (prefix: string) => string;
+	add: (definition: string) => void;
+}
+
+interface ResolvedImageOverlay {
+	source: string;
+	altText?: string;
+	width: number;
+	height: number;
+	x: number;
+	y: number;
+	background?: {
+		x: number;
+		y: number;
+		width: number;
+		height: number;
+		fill?: string;
+		cornerRadius?: number;
+		shape: ImageShape;
+	};
+	safeZoneRect: { x: number; y: number; width: number; height: number };
+	paddingModules: number;
+	safeZoneModules: number;
+	scale: number;
+	pixelSize: number;
+	shape: ImageShape;
+	cornerRadius?: number;
+	backgroundColor?: HexColor;
+	clipPathId?: string;
+	opacity: number;
+	preserveAspectRatio: string;
+}
+
+interface ImageOverlayContext {
+	moduleSize: number;
+	qrSpan: number;
+	qrOffset: number;
+	defs: DefinitionRegistry;
 }
 
 const convertFillToColorSettings = (fill: ColorFillConfig): ColorSettings => {
@@ -158,15 +209,20 @@ export const renderSvg = (
 		height: pixelSize,
 	};
 
-	const gradientDefinitions: string[] = [];
-	let gradientIndex = 0;
+	const defs: string[] = [];
+	let definitionIndex = 0;
+	const nextDefinitionId = (prefix: string): string =>
+		`${prefix}-${definitionIndex++}`;
+	const registerDefinition = (definition: string): void => {
+		defs.push(definition);
+	};
 	const resolveFillValue = (
 		prefix: string,
 		config: ColorFillConfig,
 	): string => {
 		if (config.kind === "solid") return config.color;
-		const gradientId = `${prefix}-gradient-${gradientIndex++}`;
-		gradientDefinitions.push(
+		const gradientId = nextDefinitionId(`${prefix}-gradient`);
+		registerDefinition(
 			createGradientDefinition(gradientId, config.config, gradientBounds),
 		);
 		return `url(#${gradientId})`;
@@ -182,6 +238,17 @@ export const renderSvg = (
 	const backgroundFillValue = backgroundFill.isTransparent
 		? undefined
 		: resolveFillValue("background", backgroundFill.fill);
+	const offset = marginModules * moduleSize;
+	const qrSpan = matrix.size * moduleSize;
+	const imageOverlay = resolveImageOverlay(options.styling?.imageOptions, {
+		moduleSize,
+		qrSpan,
+		qrOffset: offset,
+		defs: {
+			nextId: nextDefinitionId,
+			add: registerDefinition,
+		},
+	});
 
 	const svg: string[] = [
 		`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" shape-rendering="${shapeRendering}" width="${pixelSize}" height="${pixelSize}">`,
@@ -194,8 +261,8 @@ export const renderSvg = (
 		svg.push(`<desc>${escapeText(options.desc)}</desc>`);
 	}
 
-	if (gradientDefinitions.length > 0) {
-		svg.push("<defs>", ...gradientDefinitions, "</defs>");
+	if (defs.length > 0) {
+		svg.push("<defs>", ...defs, "</defs>");
 	}
 
 	if (backgroundFillValue) {
@@ -204,12 +271,22 @@ export const renderSvg = (
 		);
 	}
 
-	const offset = marginModules * moduleSize;
+	const safeZoneRect = imageOverlay?.safeZoneRect;
 	for (let r = 0; r < matrix.size; r++) {
 		for (let c = 0; c < matrix.size; c++) {
 			if (matrix.values[r][c] !== 1) continue;
 			const x = offset + c * moduleSize;
 			const y = offset + r * moduleSize;
+			if (
+				safeZoneRect &&
+				isPointInsideRect(
+					x + moduleSize / 2,
+					y + moduleSize / 2,
+					safeZoneRect,
+				)
+			) {
+				continue;
+			}
 			const cornerType = getCornerModuleType(r, c, matrix.size);
 			const moduleFill =
 				cornerType === "cornerDot"
@@ -227,6 +304,44 @@ export const renderSvg = (
 				createModuleElement(moduleStyle, x, y, moduleSize, moduleFill),
 			);
 		}
+	}
+
+	if (imageOverlay?.background) {
+		svg.push(
+			createImageShapeElement({
+				shape: imageOverlay.background.shape,
+				x: imageOverlay.background.x,
+				y: imageOverlay.background.y,
+				width: imageOverlay.background.width,
+				height: imageOverlay.background.height,
+				cornerRadius: imageOverlay.background.cornerRadius,
+				fill: imageOverlay.background.fill,
+			}),
+		);
+	}
+
+	if (imageOverlay) {
+		const attrs: string[] = [
+			`x="${imageOverlay.x}"`,
+			`y="${imageOverlay.y}"`,
+			`width="${imageOverlay.width}"`,
+			`height="${imageOverlay.height}"`,
+			`href="${escapeAttribute(imageOverlay.source)}"`,
+			`preserveAspectRatio="${escapeAttribute(imageOverlay.preserveAspectRatio)}"`,
+		];
+		if (imageOverlay.opacity < 1) {
+			attrs.push(`opacity="${imageOverlay.opacity.toFixed(3)}"`);
+		}
+		if (imageOverlay.clipPathId) {
+			attrs.push(`clip-path="url(#${imageOverlay.clipPathId})"`);
+		}
+		if (hasContent(imageOverlay.altText)) {
+			attrs.push(
+				`aria-label="${escapeAttribute(imageOverlay.altText!)}"`,
+				`role="img"`,
+			);
+		}
+		svg.push(`<image ${attrs.join(" ")} />`);
 	}
 
 	svg.push("</svg>");
@@ -251,6 +366,21 @@ export const renderSvg = (
 			style: cornerDotStyle,
 		},
 	};
+	if (imageOverlay) {
+		styling.imageOptions = {
+			source: imageOverlay.source,
+			altText: imageOverlay.altText,
+			scale: imageOverlay.scale,
+			pixelSize: imageOverlay.pixelSize,
+			safeZoneModules: imageOverlay.safeZoneModules,
+			paddingModules: imageOverlay.paddingModules,
+			shape: imageOverlay.shape,
+			cornerRadius: imageOverlay.cornerRadius,
+			backgroundColor: imageOverlay.backgroundColor,
+			opacity: imageOverlay.opacity,
+			preserveAspectRatio: imageOverlay.preserveAspectRatio,
+		};
+	}
 
 	return { svg: svg.join(""), styling };
 };
@@ -427,6 +557,228 @@ const buildRoundedRectPath = (
 	].join(" ");
 };
 
+const resolveImageOverlay = (
+	options: ImageOptions | undefined,
+	context: ImageOverlayContext,
+): ResolvedImageOverlay | undefined => {
+	if (!options || !hasContent(options.source)) return undefined;
+	const qrSpan = context.qrSpan;
+	if (qrSpan <= 0) return undefined;
+
+	const scale = sanitizeImageScale(options.scale);
+	const pixelSize = sanitizeImagePixelSize(options.pixelSize, qrSpan, scale);
+	if (pixelSize <= 0) return undefined;
+
+	const paddingModules = sanitizeNonNegativeModules(
+		options.paddingModules,
+		DEFAULT_IMAGE_PADDING_MODULES,
+	);
+	const safeZoneModules = Math.max(
+		paddingModules,
+		sanitizeNonNegativeModules(
+			options.safeZoneModules,
+			DEFAULT_IMAGE_SAFE_ZONE_MODULES,
+		),
+	);
+	const moduleSize = context.moduleSize;
+	const availableMargin = Math.max(0, (qrSpan - pixelSize) / 2);
+	const paddingPx = Math.min(paddingModules * moduleSize, availableMargin);
+	const safeZonePx = Math.min(safeZoneModules * moduleSize, availableMargin);
+	const backgroundWidth = pixelSize + paddingPx * 2;
+	const safeZoneWidth = pixelSize + safeZonePx * 2;
+	const centerWithinQr = (span: number): number =>
+		context.qrOffset + (qrSpan - span) / 2;
+	const imageX = centerWithinQr(pixelSize);
+	const imageY = centerWithinQr(pixelSize);
+	const backgroundX = centerWithinQr(backgroundWidth);
+	const backgroundY = centerWithinQr(backgroundWidth);
+	const safeZoneX = centerWithinQr(safeZoneWidth);
+	const safeZoneY = centerWithinQr(safeZoneWidth);
+
+	const shape = sanitizeImageShape(options.shape);
+	const preserveAspectRatio = sanitizePreserveAspectRatio(
+		options.preserveAspectRatio,
+	);
+	const opacity = sanitizeOpacity(options.opacity);
+
+	const shouldRenderBackground = options.hideBackground !== true;
+	const backgroundColor = options.backgroundColor ?? "#ffffff";
+	const imageCornerRadius =
+		shape === "rounded"
+			? sanitizeCornerRadius(options.cornerRadius, pixelSize)
+			: undefined;
+	const backgroundCornerRadius =
+		shape === "rounded"
+			? sanitizeCornerRadius(options.cornerRadius, backgroundWidth)
+			: undefined;
+
+	let clipPathId: string | undefined;
+	if (shape !== "square") {
+		const clipId = context.defs.nextId("image-clip");
+		clipPathId = clipId;
+		context.defs.add(
+			`<clipPath id="${clipId}">${createImageShapeElement({
+				shape,
+				x: imageX,
+				y: imageY,
+				width: pixelSize,
+				height: pixelSize,
+				cornerRadius: imageCornerRadius,
+			})}</clipPath>`,
+		);
+	}
+
+	return {
+		source: options.source,
+		altText: options.altText,
+		width: pixelSize,
+		height: pixelSize,
+		x: imageX,
+		y: imageY,
+		background: shouldRenderBackground
+			? {
+					x: backgroundX,
+					y: backgroundY,
+					width: backgroundWidth,
+					height: backgroundWidth,
+					fill: backgroundColor,
+					cornerRadius: backgroundCornerRadius,
+					shape,
+				}
+			: undefined,
+		safeZoneRect: {
+			x: safeZoneX,
+			y: safeZoneY,
+			width: safeZoneWidth,
+			height: safeZoneWidth,
+		},
+		paddingModules,
+		safeZoneModules,
+		scale: pixelSize / qrSpan,
+		pixelSize,
+		shape,
+		cornerRadius: imageCornerRadius,
+		backgroundColor: shouldRenderBackground ? backgroundColor : undefined,
+		clipPathId,
+		opacity,
+		preserveAspectRatio,
+	};
+};
+
+const sanitizeImageScale = (value: number | undefined): number => {
+	if (typeof value !== "number" || !Number.isFinite(value)) {
+		return DEFAULT_IMAGE_SCALE;
+	}
+	const clamped = Math.max(MIN_IMAGE_SCALE, Math.min(MAX_IMAGE_SCALE, value));
+	return clamped;
+};
+
+const sanitizeImagePixelSize = (
+	pixelSize: number | undefined,
+	qrSpan: number,
+	scale: number,
+): number => {
+	if (typeof pixelSize === "number" && Number.isFinite(pixelSize)) {
+		if (pixelSize <= 0) return 0;
+		return Math.min(pixelSize, qrSpan);
+	}
+	const resolved = qrSpan * scale;
+	return Math.min(Math.max(resolved, qrSpan * MIN_IMAGE_SCALE), qrSpan);
+};
+
+const sanitizeNonNegativeModules = (
+	value: number | undefined,
+	fallback: number,
+): number => {
+	if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+		return fallback;
+	}
+	return value;
+};
+
+const sanitizeImageShape = (shape: ImageShape | undefined): ImageShape => {
+	if (shape === "square" || shape === "rounded" || shape === "circle") {
+		return shape;
+	}
+	return DEFAULT_IMAGE_SHAPE;
+};
+
+const sanitizeCornerRadius = (
+	value: number | undefined,
+	size: number,
+): number | undefined => {
+	if (size <= 0) return undefined;
+	const maxRadius = size / 2;
+	if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+		return Math.min(value, maxRadius);
+	}
+	return Math.min(maxRadius, size * DEFAULT_IMAGE_CORNER_RADIUS_RATIO);
+};
+
+const sanitizeOpacity = (value: number | undefined): number => {
+	if (typeof value !== "number" || !Number.isFinite(value)) {
+		return DEFAULT_IMAGE_OPACITY;
+	}
+	if (value <= 0) return 0;
+	if (value >= 1) return 1;
+	return value;
+};
+
+const sanitizePreserveAspectRatio = (value: string | undefined): string => {
+	if (!hasContent(value)) return "xMidYMid meet";
+	return value.trim();
+};
+
+const createImageShapeElement = ({
+	shape,
+	x,
+	y,
+	width,
+	height,
+	cornerRadius,
+	fill,
+}: {
+	shape: ImageShape;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	cornerRadius?: number;
+	fill?: string;
+}): string => {
+	const fillAttr = hasContent(fill)
+		? ` fill="${escapeAttribute(fill!)}"`
+		: "";
+	switch (shape) {
+		case "circle": {
+			const radius = Math.min(width, height) / 2;
+			const cx = x + width / 2;
+			const cy = y + height / 2;
+			return `<circle cx="${cx}" cy="${cy}" r="${radius}"${fillAttr} />`;
+		}
+		case "rounded": {
+			const resolvedRadius =
+				typeof cornerRadius === "number" ? cornerRadius : 0;
+			return `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="${resolvedRadius}" ry="${resolvedRadius}"${fillAttr} />`;
+		}
+		default:
+			return `<rect x="${x}" y="${y}" width="${width}" height="${height}"${fillAttr} />`;
+	}
+};
+
+const isPointInsideRect = (
+	x: number,
+	y: number,
+	rect: { x: number; y: number; width: number; height: number },
+): boolean => {
+	return (
+		x >= rect.x &&
+		x <= rect.x + rect.width &&
+		y >= rect.y &&
+		y <= rect.y + rect.height
+	);
+};
+
 const clampRadius = (radius: number, size: number): number => {
 	const limit = size / 2;
 	if (!Number.isFinite(radius) || radius <= 0) return 0;
@@ -569,3 +921,4 @@ const escapeText = (value: string): string =>
 	String(value).replace(/[&<>"']/g, (char) => ESCAPE_LOOKUP[char]);
 
 const escapeAttribute = (value: string): string => escapeText(value);
+

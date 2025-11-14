@@ -5,7 +5,7 @@ import { finalizeMatrix } from "./mask";
 import type { MaskId, QrMatrix } from "./mask/types";
 import { renderSvg } from "./render/svg";
 import type { SvgRenderOptions } from "./render/svg";
-import { DesignStyleOptions } from "./styleTypes";
+import { DesignStyleOptions, ImageOptions } from "./styleTypes";
 
 export interface EncodeMatrixResult {
 	version: VersionNumber;
@@ -51,7 +51,11 @@ export const generateQrCode = (
 	opts?: QROptions,
 	renderOptions?: SvgRenderOptions,
 ): GenerateQrCodeResult => {
-	const result = encodeToMatrix(input, opts);
+	const resolvedOptions = ensureEccForImage(
+		opts,
+		renderOptions?.styling?.imageOptions,
+	);
+	const result = encodeToMatrix(input, resolvedOptions);
 	const { svg, styling } = renderSvg(result.matrix, renderOptions);
 	return { ...result, svg, styling };
 };
@@ -85,4 +89,27 @@ export type {
 	BackgroundOptions,
 	ColorSettings,
 	DesignStyleOptions,
+	ImageOptions,
+	ImageShape,
 } from "./styleTypes";
+
+const ensureEccForImage = (
+	options: QROptions | undefined,
+	imageOptions: ImageOptions | undefined,
+): QROptions | undefined => {
+	if (!imageOptions || !hasImageSource(imageOptions.source)) {
+		return options;
+	}
+	const desiredEcc: EccLevel =
+		imageOptions.scale !== undefined && imageOptions.scale >= 0.25
+			? "H"
+			: "Q";
+	if (!options) return { ecc: desiredEcc };
+	if (!options.ecc) return { ...options, ecc: desiredEcc };
+	const order: Record<EccLevel, number> = { L: 0, M: 1, Q: 2, H: 3 };
+	if (order[options.ecc] >= order[desiredEcc]) return options;
+	return { ...options, ecc: desiredEcc };
+};
+
+const hasImageSource = (source: string | undefined): source is string =>
+	typeof source === "string" && source.length > 0;

@@ -142,10 +142,48 @@ interface DesignStyleOptions {
   dotOptions?: DotOptions;               // main data modules
   cornerSquareOptions?: CornerSquareOptions; // finder pattern outer rings
   cornerDotOptions?: CornerDotOptions;       // finder pattern centers
+  imageOptions?: ImageOptions;           // centered logo overlay
 }
 ```
 
 Default palette: black dots on white background (`DEFAULT_FOREGROUND_HEX_COLORS`, `DEFAULT_BACKGROUND_HEX_COLORS`). Explicit styles trigger `shapeRendering="geometricPrecision"` so curved shapes stay smooth.
+
+### Image overlay
+
+Add a central logo without breaking scan reliability via `imageOptions`:
+
+```ts
+interface ImageOptions {
+  source: string;          // data URI, inline SVG, or absolute URL
+  altText?: string;
+  scale?: number;          // fraction of QR interior (default 0.18)
+  pixelSize?: number;      // overrides scale when provided
+  safeZoneModules?: number;  // cleared modules around the badge (default 1)
+  paddingModules?: number;   // white border thickness (default 0)
+  shape?: "square" | "rounded" | "circle"; // default "rounded"
+  cornerRadius?: number;   // px radius for rounded squares
+  backgroundColor?: HexColor; // defaults to #ffffff unless hideBackground
+  hideBackground?: boolean;   // skip drawing the padded backdrop
+  opacity?: number;           // 0..1
+  preserveAspectRatio?: string; // forwarded to the <image> tag
+}
+```
+
+The renderer clears the safe-zone modules, draws the optional background shape, clips the image for rounded/circle shapes, and embeds the `<image>` element centered on the QR matrix. Example:
+
+```ts
+const { svg } = generateQrCode("https://example.com", undefined, {
+  styling: {
+    imageOptions: {
+      source: "data:image/png;base64,...",
+      pixelSize: 128,
+      paddingModules: 1,
+      shape: "circle",
+      altText: "Company mark",
+    },
+  },
+});
+```
 
 ## Exporting & downloading
 
