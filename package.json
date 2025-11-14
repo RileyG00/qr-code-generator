@@ -1,7 +1,8 @@
 {
 	"name": "qr-code-generator",
 	"version": "0.0.1-beta.0",
-	"description": "",
+	"readme": "./README.md",
+	"description": "A type safe, typescript-first SVG QR code generator that supports multiple file download formats, styling options, customization options for refinded QR code generation.",
 	"main": "index.js",
 	"scripts": {
 		"test": "vitest run",
@@ -11,8 +12,18 @@
 		"type": "git",
 		"url": "git+https://github.com/RileyG00/qr-code-generator.git"
 	},
-	"keywords": [],
-	"author": "",
+	"keywords": [
+		"qrcode",
+		"qr",
+		"code",
+		"generator",
+		"qr code generator",
+		"qrcode-generator",
+		"qrcode generator",
+		"react qr code generator",
+		"react qr code"
+	],
+	"author": "Riley Griffin",
 	"license": "MIT",
 	"type": "module",
 	"bugs": {
