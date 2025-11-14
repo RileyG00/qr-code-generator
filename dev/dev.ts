@@ -6,6 +6,7 @@ import {
 	CornerDotOptions,
 	CornerSquareOptions,
 	DotOptions,
+	downloadQrCode,
 	generateQrCode,
 	SvgRenderOptions,
 } from "../src";
@@ -22,10 +23,10 @@ export const writeTestSvg = (text: string = DEFAULT_TEXT): string => {
 	};
 	const cornerSquares: CornerSquareOptions = {
 		hexColors: ["#3c1053"],
-		style: "square",
+		style: "dot",
 	};
 	const cornerDots: CornerDotOptions = {
-		hexColors: ["#3c1053"],
+		hexColors: ["#105348ff"],
 		style: "square",
 	};
 	const background: BackgroundOptions = {
@@ -33,10 +34,13 @@ export const writeTestSvg = (text: string = DEFAULT_TEXT): string => {
 	};
 
 	const options: SvgRenderOptions = {
-		dotOptions: dots,
-		cornerSquareOptions: cornerSquares,
-		cornerDotOptions: cornerDots,
-		backgroundOptions: background,
+		size: 512,
+		styling: {
+			dotOptions: dots,
+			cornerSquareOptions: cornerSquares,
+			cornerDotOptions: cornerDots,
+			backgroundOptions: background,
+		},
 	};
 
 	const { svg } = generateQrCode(text, undefined, options);
