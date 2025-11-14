@@ -1,11 +1,12 @@
 {
-	"name": "qr-code-generator",
+	"name": "qr-code-render-kit",
 	"version": "0.0.1-beta.0",
 	"readme": "./README.md",
 	"description": "A type safe, typescript-first SVG QR code generator that supports multiple file download formats, styling options, customization options for refinded QR code generation.",
 	"main": "index.js",
 	"scripts": {
 		"test": "vitest run",
+		"build": "tsc -p tsconfig.build.json",
 		"render:svg": "tsx dev/dev.ts"
 	},
 	"repository": {

@@ -140,10 +140,20 @@ export const VERSION_CAPACITIES: readonly VersionCapacity[] = Array.from({ lengt
 
 const MODE_INDICATOR_BITS = 4;
 
-export const getVersionCapacity = (version: VersionNumber): VersionCapacity => {
+export const getVersionCapacity = (
+	versionInput: VersionNumber | number,
+): VersionCapacity => {
+	const numeric = Number(versionInput);
+	if (!Number.isInteger(numeric)) {
+		throw new RangeError(`QR version must be an integer: received ${versionInput}.`);
+	}
+	if (numeric < 1 || numeric > 40) {
+		throw new RangeError(`Unsupported QR version ${versionInput}.`);
+	}
+	const version = numeric as VersionNumber;
 	const entry = VERSION_CAPACITIES[version - 1];
 	if (!entry) {
-		throw new RangeError(`Unsupported QR version ${version}.`);
+		throw new RangeError(`Unsupported QR version ${versionInput}.`);
 	}
 	return entry;
 };
@@ -243,3 +253,5 @@ export const selectVersionAndEcc = (
 		`Input of ${inputLength} characters in mode ${mode} cannot fit in any version between ${minVersion} and ${maxVersion} with ECC ${eccLabel}.`,
 	);
 };
+
+export type { VersionNumber } from "../types";

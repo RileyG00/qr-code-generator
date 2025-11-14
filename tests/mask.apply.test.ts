@@ -16,7 +16,7 @@ const makeMatrix = (size: number, fill: 0 | 1): QrMatrix => {
 };
 
 const cloneValues = (values: QrMatrix["values"]): QrMatrix["values"] =>
-	values.map((row) => row.slice());
+	values.map((row: QrMatrix["values"][number]) => row.slice());
 
 test("applyMask preserves reserved cells", () => {
 	const m = makeMatrix(5, 1);

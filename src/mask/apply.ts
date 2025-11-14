@@ -71,3 +71,5 @@ export const applyMask = (matrix: QrMatrix, maskId: MaskId): QrMatrix => {
 
 export const isDataCell = (matrix: QrMatrix, row: number, col: number): boolean =>
 	!matrix.reserved[row][col];
+
+export type { MaskId, QrMatrix } from "./types";
