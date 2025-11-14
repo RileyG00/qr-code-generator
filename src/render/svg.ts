@@ -112,7 +112,7 @@ interface ResolvedImageOverlay {
 	pixelSize: number;
 	shape: ImageShape;
 	cornerRadius?: number;
-	backgroundColor?: string;
+	backgroundColor?: HexColor;
 	clipPathId?: string;
 	opacity: number;
 	preserveAspectRatio: string;
@@ -240,9 +240,7 @@ export const renderSvg = (
 		: resolveFillValue("background", backgroundFill.fill);
 	const offset = marginModules * moduleSize;
 	const qrSpan = matrix.size * moduleSize;
-const imageOverlay = resolveImageOverlay(
-	options.styling?.imageOptions,
-	{
+	const imageOverlay = resolveImageOverlay(options.styling?.imageOptions, {
 		moduleSize,
 		qrSpan,
 		qrOffset: offset,
@@ -250,8 +248,7 @@ const imageOverlay = resolveImageOverlay(
 			nextId: nextDefinitionId,
 			add: registerDefinition,
 		},
-	},
-);
+	});
 
 	const svg: string[] = [
 		`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}" shape-rendering="${shapeRendering}" width="${pixelSize}" height="${pixelSize}">`,
@@ -556,8 +553,8 @@ const buildRoundedRectPath = (
 		`Q ${x} ${bottom} ${x} ${bottom - bl}`,
 		`V ${y + tl}`,
 		`Q ${x} ${y} ${x + tl} ${y}`,
-	"Z",
-].join(" ");
+		"Z",
+	].join(" ");
 };
 
 const resolveImageOverlay = (
@@ -727,9 +724,7 @@ const sanitizeOpacity = (value: number | undefined): number => {
 	return value;
 };
 
-const sanitizePreserveAspectRatio = (
-	value: string | undefined,
-): string => {
+const sanitizePreserveAspectRatio = (value: string | undefined): string => {
 	if (!hasContent(value)) return "xMidYMid meet";
 	return value.trim();
 };
@@ -926,3 +921,4 @@ const escapeText = (value: string): string =>
 	String(value).replace(/[&<>"']/g, (char) => ESCAPE_LOOKUP[char]);
 
 const escapeAttribute = (value: string): string => escapeText(value);
+
