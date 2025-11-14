@@ -38,7 +38,7 @@ export interface SvgRenderOptions {
 		| "optimizeSpeed";
 }
 
-const DEFAULT_MARGIN = 4;
+const DEFAULT_MARGIN = 1;
 const DEFAULT_MODULE_SIZE = 8;
 const DEFAULT_SHAPE_RENDERING = "crispEdges";
 const FINDER_PATTERN_SIZE = 7;
@@ -65,10 +65,7 @@ interface GradientBounds {
 	height: number;
 }
 
-type ModuleShape =
-	| DotShapeType
-	| CornerSquareShapeType
-	| CornerDotShapeType;
+type ModuleShape = DotShapeType | CornerSquareShapeType | CornerDotShapeType;
 
 interface CornerRadii {
 	tl: number;
@@ -110,7 +107,7 @@ export const renderSvg = (
 		? resolveColorFill(
 				options.cornerSquareOptions,
 				DEFAULT_FOREGROUND_HEX_COLORS,
-		  )
+			)
 		: undefined;
 	const cornerSquareStyle = sanitizeCornerSquareStyle(
 		options.cornerSquareOptions?.style,
@@ -119,7 +116,7 @@ export const renderSvg = (
 		? resolveColorFill(
 				options.cornerDotOptions,
 				DEFAULT_FOREGROUND_HEX_COLORS,
-		  )
+			)
 		: undefined;
 	const cornerDotStyle = sanitizeCornerDotStyle(
 		options.cornerDotOptions?.style,
@@ -242,9 +239,7 @@ const resolveColorFill = (
 	};
 };
 
-const sanitizeDotStyle = (
-	style: DotOptions["style"],
-): DotShapeType => {
+const sanitizeDotStyle = (style: DotOptions["style"]): DotShapeType => {
 	switch (style) {
 		case "dot":
 		case "rounded":
@@ -518,3 +513,4 @@ const escapeText = (value: string): string =>
 	String(value).replace(/[&<>"']/g, (char) => ESCAPE_LOOKUP[char]);
 
 const escapeAttribute = (value: string): string => escapeText(value);
+
