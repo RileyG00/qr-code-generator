@@ -57,6 +57,20 @@ export const generateQrCode = (
 export type { QROptions } from "./types";
 export type { SvgRenderOptions } from "./render/svg";
 export type {
+	GradientType,
+	HexColor,
+	DotShapeType,
+	CornerSquareShapeType,
+	CornerDotShapeType,
+	Square,
+	Dot,
+	Rounded,
+	ExtraRounded,
+	Classy,
+	ClassyRounded,
+	DotStyle,
+	CornerSquareStyle,
+	CornerDotStyle,
 	DotOptions,
 	CornerSquareOptions,
 	CornerDotOptions,
