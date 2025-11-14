@@ -73,7 +73,8 @@ export const renderSvg = (
 };
 
 const sanitizeMargin = (value: number | undefined): number => {
-	if (typeof value !== "number" || !Number.isFinite(value)) return DEFAULT_MARGIN;
+	if (typeof value !== "number" || !Number.isFinite(value))
+		return DEFAULT_MARGIN;
 	return Math.max(0, Math.floor(value));
 };
 

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { encodeToMatrix, generateQrCode } from "../src";
+import { generateQrCode } from "../src";
 import { makeFormatInfoBits } from "../src/mask/format-info";
 
 const formatPositionsLeft: Array<[number, number]> = [
@@ -30,9 +30,9 @@ const formatPositionsRight = (size: number): Array<[number, number]> => {
 const bitsToString = (bits: number): string =>
 	bits.toString(2).padStart(15, "0");
 
-describe("encodeToMatrix version 1", () => {
+describe("generateQrCode version 1 matrix output", () => {
 	test("produces a fully populated matrix with format info", () => {
-		const { matrix, maskId, formatBits } = encodeToMatrix("HELLO", {
+		const { matrix, maskId, formatBits } = generateQrCode("HELLO", {
 			version: 1,
 			ecc: "L",
 			mode: "byte",

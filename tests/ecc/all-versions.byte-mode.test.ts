@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { encodeToMatrix, prepareCodewords } from "../../src";
+import { generateQrCode } from "../../src";
+import { prepareCodewords } from "../../src/encoder";
 import type { EccLevel, VersionNumber } from "../../src/types";
 import { getCharCountBits, getVersionCapacity } from "../../src/metadata/capacity";
 
@@ -46,7 +47,7 @@ describe("Byte-mode capacity sweep across versions 1-40 and all ECC levels", () 
 					info.totalCodewords,
 				);
 
-				const matrix = encodeToMatrix(payload, {
+				const matrix = generateQrCode(payload, {
 					ecc,
 					minVersion: typedVersion,
 					maxVersion: typedVersion,
@@ -71,7 +72,7 @@ describe("Byte-mode capacity sweep across versions 1-40 and all ECC levels", () 
 				).toThrow();
 
 				expect(() =>
-					encodeToMatrix(overPayload, {
+					generateQrCode(overPayload, {
 						ecc,
 						minVersion: typedVersion,
 						maxVersion: typedVersion,
@@ -93,8 +94,8 @@ describe("Long payload matrix selection", () => {
 	});
 
 	for (const ecc of ECC_LEVELS) {
-		test(`encodeToMatrix handles long payloads for ECC ${ecc}`, () => {
-			const result = encodeToMatrix(LONG_PAYLOAD, { ecc });
+		test(`generateQrCode handles long payloads for ECC ${ecc}`, () => {
+			const result = generateQrCode(LONG_PAYLOAD, { ecc });
 			const info = getVersionCapacity(result.version);
 
 			expect(result.version).toBeGreaterThanOrEqual(1);

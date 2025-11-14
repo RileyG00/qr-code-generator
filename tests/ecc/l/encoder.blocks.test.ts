@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { prepareCodewords } from "../../../src";
+import { prepareCodewords } from "../../../src/encoder";
 import { getVersionCapacity } from "../../../src/metadata/capacity";
 
 describe("Generic encoder blocks (ECC L)", () => {

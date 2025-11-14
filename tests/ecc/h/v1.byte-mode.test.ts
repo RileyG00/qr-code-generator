@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { encodeToMatrix, prepareCodewords } from "../../../src";
+import { generateQrCode } from "../../../src";
+import { prepareCodewords } from "../../../src/encoder";
 import { encodeUtf8 } from "../../../src/encoder/byte-mode";
 import { makeDataCodewords } from "../../../src/encoder/data-codewords";
 import { getVersionCapacity } from "../../../src/metadata/capacity";
@@ -45,15 +46,15 @@ describe("V1-H byte-mode payload handling", () => {
 });
 
 describe("V1-H matrix selection", () => {
-	test("encodeToMatrix returns version 1 for payloads within H capacity", () => {
-		const result = encodeToMatrix("HELLO!", { ecc: "H", mode: "byte" });
+	test("generateQrCode returns version 1 for payloads within H capacity", () => {
+		const result = generateQrCode("HELLO!", { ecc: "H", mode: "byte" });
 		expect(result.version).toBe(1);
 		expect(result.ecc).toBe("H");
 	});
 
-	test("encodeToMatrix promotes for larger payloads with ECC H", () => {
+	test("generateQrCode promotes for larger payloads with ECC H", () => {
 		const payload = "C".repeat(MAX_V1_H_PAYLOAD + 3);
-		const result = encodeToMatrix(payload, { ecc: "H", mode: "byte" });
+		const result = generateQrCode(payload, { ecc: "H", mode: "byte" });
 		expect(result.version).toBeGreaterThan(1);
 		expect(result.ecc).toBe("H");
 	});
@@ -62,8 +63,8 @@ describe("V1-H matrix selection", () => {
 describe("Comparative ECC H behavior", () => {
 	test("ECC H chooses same or larger version than ECC L for the same payload", () => {
 		const payload = "The quick brown fox jumps over the lazy dog!";
-		const low = encodeToMatrix(payload, { ecc: "L" });
-		const high = encodeToMatrix(payload, { ecc: "H" });
+		const low = generateQrCode(payload, { ecc: "L" });
+		const high = generateQrCode(payload, { ecc: "H" });
 
 		expect(high.version).toBeGreaterThanOrEqual(low.version);
 		expect(high.matrix.size).toBe(17 + 4 * high.version);
@@ -71,7 +72,7 @@ describe("Comparative ECC H behavior", () => {
 
 	test("Tighter version constraints can reject ECC H even when ECC L fits", () => {
 		const payload = "A".repeat(28);
-		const fits = encodeToMatrix(payload, {
+		const fits = generateQrCode(payload, {
 			ecc: "L",
 			maxVersion: 2,
 			mode: "byte",
@@ -79,7 +80,7 @@ describe("Comparative ECC H behavior", () => {
 		expect(fits.version).toBeLessThanOrEqual(2);
 
 		expect(() =>
-			encodeToMatrix(payload, { ecc: "H", maxVersion: 2, mode: "byte" }),
+			generateQrCode(payload, { ecc: "H", maxVersion: 2, mode: "byte" }),
 		).toThrow(/no version|cannot fit/i);
 	});
 });

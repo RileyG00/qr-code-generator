@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { encodeToMatrix, encodeToSvg, prepareCodewords } from "../../src";
+import { generateQrCode } from "../../src";
+import { prepareCodewords } from "../../src/encoder";
 import { getVersionCapacity } from "../../src/metadata/capacity";
 
 const assertFilled = (size: number, rows: (0 | 1 | null)[][]) => {
@@ -10,29 +11,29 @@ const assertFilled = (size: number, rows: (0 | 1 | null)[][]) => {
 	}
 };
 
-describe("encodeToMatrix", () => {
+describe("generateQrCode (matrix assembly)", () => {
 	test("automatically promotes to Version 2 for inputs beyond V1 capacity", () => {
 		const payload = "A".repeat(20);
-		const result = encodeToMatrix(payload, { mode: "byte" });
+		const result = generateQrCode(payload, { mode: "byte" });
 		expect(result.version).toBe(2);
 		expect(result.matrix.size).toBe(25);
 	});
 
 	test("escalates to Version 3 or higher for longer payloads", () => {
 		const payload = "A".repeat(60);
-		const result = encodeToMatrix(payload);
+		const result = generateQrCode(payload);
 		expect(result.version).toBeGreaterThanOrEqual(3);
 		expect(result.matrix.size).toBe(17 + 4 * result.version);
 	});
 
-	test("encodeToSvg wraps encodeToMatrix and renders expected dimensions", () => {
-		const base = encodeToMatrix("test");
+	test("generateQrCode returns SVG with expected dimensions", () => {
+		const base = generateQrCode("test");
 		const margin = 2;
 		const moduleSize = 10;
 		const expectedSize =
 			(base.matrix.size + margin * 2) * moduleSize;
 
-		const svg = encodeToSvg("test", undefined, {
+		const { svg } = generateQrCode("test", undefined, {
 			margin,
 			moduleSize,
 			title: "Example",
@@ -49,18 +50,18 @@ describe("encodeToMatrix", () => {
 
 	test("throws a descriptive error when input exceeds Version 40 capacity", () => {
 		const payload = "X".repeat(5000);
-		expect(() => encodeToMatrix(payload)).toThrow(/no version|cannot fit/i);
+		expect(() => generateQrCode(payload)).toThrow(/no version|cannot fit/i);
 	});
 
 	test("throws when minVersion is greater than maxVersion", () => {
 		expect(() =>
-			encodeToMatrix("data", { minVersion: 5, maxVersion: 4 }),
+			generateQrCode("data", { minVersion: 5, maxVersion: 4 }),
 		).toThrow(/minVersion/i);
 	});
 
 	test("throws when constraints forbid a fitting version", () => {
 		const payload = "B".repeat(40);
-		expect(() => encodeToMatrix(payload, { maxVersion: 1 })).toThrow(
+		expect(() => generateQrCode(payload, { maxVersion: 1 })).toThrow(
 			/no version|cannot fit/i,
 		);
 	});
@@ -72,7 +73,7 @@ test("large payload stays within metadata capacity and fills the matrix", () => 
 	const info = getVersionCapacity(prepared.version);
 	expect(prepared.interleavedCodewords.length).toBe(info.totalCodewords);
 
-	const result = encodeToMatrix(payload);
+	const result = generateQrCode(payload);
 	expect(result.version).toBe(prepared.version);
 	expect(result.ecc).toBe(prepared.ecc);
 	expect(result.matrix.size).toBe(17 + 4 * result.version);
@@ -87,8 +88,8 @@ test("auto-detects alphanumeric mode to reduce the required version", () => {
 	expect(autoPlan.mode).toBe("alphanumeric");
 	expect(autoPlan.version).toBeLessThan(forcedByte.version);
 
-	const autoMatrix = encodeToMatrix(payload);
-	const forcedMatrix = encodeToMatrix(payload, { mode: "byte" });
+	const autoMatrix = generateQrCode(payload);
+	const forcedMatrix = generateQrCode(payload, { mode: "byte" });
 	expect(autoMatrix.version).toBe(autoPlan.version);
 	expect(forcedMatrix.version).toBe(forcedByte.version);
 	expect(autoMatrix.version).toBeLessThan(forcedMatrix.version);

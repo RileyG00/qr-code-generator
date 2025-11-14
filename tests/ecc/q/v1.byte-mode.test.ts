@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { encodeToMatrix, prepareCodewords } from "../../../src";
+import { generateQrCode } from "../../../src";
+import { prepareCodewords } from "../../../src/encoder";
 import { encodeUtf8 } from "../../../src/encoder/byte-mode";
 import { makeDataCodewords } from "../../../src/encoder/data-codewords";
 import { getVersionCapacity } from "../../../src/metadata/capacity";
@@ -45,8 +46,8 @@ describe("V1-Q byte-mode payload handling", () => {
 });
 
 describe("V1-Q matrix selection", () => {
-	test("encodeToMatrix stays within version 1 when possible", () => {
-		const result = encodeToMatrix("Short text", { ecc: "Q", mode: "byte" });
+	test("generateQrCode stays within version 1 when possible", () => {
+		const result = generateQrCode("Short text", { ecc: "Q", mode: "byte" });
 		expect(result.version).toBe(1);
 		expect(result.ecc).toBe("Q");
 	});
@@ -54,7 +55,7 @@ describe("V1-Q matrix selection", () => {
 	test("forcing version 1 fails once payload exceeds Q capacity", () => {
 		const payload = "C".repeat(MAX_V1_Q_PAYLOAD + 2);
 		expect(() =>
-			encodeToMatrix(payload, {
+			generateQrCode(payload, {
 				ecc: "Q",
 				minVersion: 1,
 				maxVersion: 1,

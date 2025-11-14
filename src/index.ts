@@ -1,11 +1,12 @@
 import { prepareCodewords as prepareGenericCodewords } from "./encoder";
-import type { EccLevel, QRCodewords, QROptions, VersionNumber } from "./types";
+import type { EccLevel, QROptions, VersionNumber } from "./types";
 import { buildMatrix } from "./matrix";
 import { finalizeMatrix } from "./mask";
 import type { MaskId, QrMatrix } from "./mask/types";
-import { renderSvg, type SvgRenderOptions } from "./render/svg";
+import { renderSvg } from "./render/svg";
+import type { SvgRenderOptions } from "./render/svg";
 
-export interface EncodeMatrixResult {
+interface EncodeMatrixResult {
 	version: VersionNumber;
 	ecc: EccLevel;
 	maskId: MaskId;
@@ -13,9 +14,9 @@ export interface EncodeMatrixResult {
 	matrix: QrMatrix;
 }
 
-export const prepareCodewords = prepareGenericCodewords;
+const prepareCodewords = prepareGenericCodewords;
 
-export const encodeToMatrix = (
+const encodeToMatrix = (
 	input: string,
 	opts?: QROptions,
 ): EncodeMatrixResult => {
@@ -39,15 +40,6 @@ export const encodeToMatrix = (
 	};
 };
 
-export const encodeToSvg = (
-	input: string,
-	opts?: QROptions,
-	renderOptions?: SvgRenderOptions,
-): string => {
-	const { matrix } = encodeToMatrix(input, opts);
-	return renderSvg(matrix, renderOptions);
-};
-
 export interface GenerateQrCodeResult extends EncodeMatrixResult {
 	svg: string;
 }
@@ -62,4 +54,5 @@ export const generateQrCode = (
 	return { ...result, svg };
 };
 
-export { renderSvg, type SvgRenderOptions } from "./render/svg";
+export type { QROptions } from "./types";
+export type { SvgRenderOptions } from "./render/svg";

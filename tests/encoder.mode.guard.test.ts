@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { encodeToMatrix, prepareCodewords } from "../src";
+import { generateQrCode } from "../src";
+import { prepareCodewords } from "../src/encoder";
 
 describe("encoder mode guards", () => {
 	test("prepareCodewords rejects unsupported modes", () => {
@@ -8,9 +9,9 @@ describe("encoder mode guards", () => {
 		).toThrow(/unsupported mode/i);
 	});
 
-	test("encodeToMatrix bubbles up unsupported mode errors", () => {
+	test("generateQrCode bubbles up unsupported mode errors", () => {
 		expect(() =>
-			encodeToMatrix("HELLO", { mode: "kanji" as never }),
+			generateQrCode("HELLO", { mode: "kanji" as never }),
 		).toThrow(/unsupported mode/i);
 	});
 });

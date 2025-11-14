@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { TextDecoder } from "node:util";
-import { encodeToMatrix, prepareCodewords } from "../../../src";
+import { generateQrCode } from "../../../src";
+import { prepareCodewords } from "../../../src/encoder";
 import { encodeUtf8 } from "../../../src/encoder/byte-mode";
 import { makeDataCodewords } from "../../../src/encoder/data-codewords";
 import { getVersionCapacity } from "../../../src/metadata/capacity";
@@ -161,8 +162,8 @@ describe("prepareCodewords forced to V1-L", () => {
 });
 
 describe("V1-L matrix selection", () => {
-	test("encodeToMatrix stays on version 1-L for short payloads", () => {
-		const result = encodeToMatrix("HELLO", { ecc: "L", mode: "byte" });
+	test("generateQrCode stays on version 1-L for short payloads", () => {
+		const result = generateQrCode("HELLO", { ecc: "L", mode: "byte" });
 		expect(result.version).toBe(1);
 		expect(result.ecc).toBe("L");
 		expect(result.matrix.size).toBe(21);
@@ -173,7 +174,7 @@ describe("V1-L matrix selection", () => {
 	test("forcing version 1 rejects payloads beyond the V1-L capacity", () => {
 		const payload = "A".repeat(18);
 		expect(() =>
-			encodeToMatrix(payload, {
+			generateQrCode(payload, {
 				ecc: "L",
 				minVersion: 1,
 				maxVersion: 1,

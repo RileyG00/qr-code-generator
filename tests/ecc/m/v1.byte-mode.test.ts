@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { encodeToMatrix, prepareCodewords } from "../../../src";
+import { generateQrCode } from "../../../src";
+import { prepareCodewords } from "../../../src/encoder";
 import { encodeUtf8 } from "../../../src/encoder/byte-mode";
 import { makeDataCodewords } from "../../../src/encoder/data-codewords";
 import { getVersionCapacity } from "../../../src/metadata/capacity";
@@ -45,16 +46,16 @@ describe("V1-M byte-mode data and ECC codewords", () => {
 });
 
 describe("V1-M matrix selection", () => {
-	test("encodeToMatrix stays at version 1 when payload fits", () => {
-		const result = encodeToMatrix("HELLO", { ecc: "M", mode: "byte" });
+	test("generateQrCode stays at version 1 when payload fits", () => {
+		const result = generateQrCode("HELLO", { ecc: "M", mode: "byte" });
 		expect(result.version).toBe(1);
 		expect(result.ecc).toBe("M");
 		expect(result.matrix.size).toBe(21);
 	});
 
-	test("encodeToMatrix promotes when payload exceeds capacity", () => {
+	test("generateQrCode promotes when payload exceeds capacity", () => {
 		const payload = "C".repeat(MAX_V1_M_PAYLOAD + 5);
-		const result = encodeToMatrix(payload, { ecc: "M", mode: "byte" });
+		const result = generateQrCode(payload, { ecc: "M", mode: "byte" });
 		expect(result.ecc).toBe("M");
 		expect(result.version).toBeGreaterThan(1);
 	});

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { prepareCodewords } from "../../src";
+import { prepareCodewords } from "../../src/encoder";
 import { getCharCountBits, getVersionCapacity } from "../../src/metadata/capacity";
 import type { EccLevel, VersionNumber } from "../../src/types";
 

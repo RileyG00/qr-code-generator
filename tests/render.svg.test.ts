@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { renderSvg } from "../src";
+import { renderSvg } from "../src/render/svg";
 import { makeMatrix, setModule } from "../src/matrix/types";
 
 const buildMatrix = (rows: (0 | 1)[][]) => {

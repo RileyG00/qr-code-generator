@@ -2,7 +2,7 @@ import { describe, test, expect } from "vitest";
 import { makeGF256 } from "../src/math/gf256";
 import { makeGeneratorPoly } from "../src/rs/generator";
 import { rsEncode } from "../src/rs/encode";
-import { prepareCodewords } from "../src";
+import { prepareCodewords } from "../src/encoder";
 
 const evalPoly = (
 	gf: ReturnType<typeof makeGF256>,
