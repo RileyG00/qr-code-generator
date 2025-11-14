@@ -5,6 +5,7 @@ import { finalizeMatrix } from "./mask";
 import type { MaskId, QrMatrix } from "./mask/types";
 import { renderSvg } from "./render/svg";
 import type { SvgRenderOptions } from "./render/svg";
+import { DesignStyleOptions } from "./styleTypes";
 
 interface EncodeMatrixResult {
 	version: VersionNumber;
@@ -42,6 +43,7 @@ const encodeToMatrix = (
 
 export interface GenerateQrCodeResult extends EncodeMatrixResult {
 	svg: string;
+	styling: DesignStyleOptions;
 }
 
 export const generateQrCode = (
@@ -50,8 +52,8 @@ export const generateQrCode = (
 	renderOptions?: SvgRenderOptions,
 ): GenerateQrCodeResult => {
 	const result = encodeToMatrix(input, opts);
-	const svg = renderSvg(result.matrix, renderOptions);
-	return { ...result, svg };
+	const { svg, styling } = renderSvg(result.matrix, renderOptions);
+	return { ...result, svg, styling };
 };
 
 export type { QROptions } from "./types";
@@ -76,4 +78,5 @@ export type {
 	CornerDotOptions,
 	BackgroundOptions,
 	ColorSettings,
+	DesignStyleOptions,
 } from "./styleTypes";

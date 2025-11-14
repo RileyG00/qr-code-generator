@@ -21,7 +21,7 @@ describe("renderSvg", () => {
 			[0, 0, 1],
 		]);
 
-		const svg = renderSvg(matrix);
+		const { svg } = renderSvg(matrix);
 
 		expect(svg).toContain('viewBox="0 0 40 40"');
 		expect(svg).toContain('width="40"');
@@ -38,7 +38,7 @@ describe("renderSvg", () => {
 			[1, 1],
 		]);
 
-		const svg = renderSvg(matrix, {
+		const { svg } = renderSvg(matrix, {
 			margin: 1,
 			moduleSize: 2,
 			title: 'Say "hi" & <friends>',
@@ -58,7 +58,7 @@ describe("renderSvg", () => {
 	test("falls back to backgroundColor and omits module rects when no dark modules are set", () => {
 		const matrix = makeMatrix(1);
 
-		const svg = renderSvg(matrix, {
+		const { svg } = renderSvg(matrix, {
 			margin: 0,
 			moduleSize: 5,
 		});
@@ -72,7 +72,7 @@ describe("renderSvg", () => {
 	test("clamps negative margins and resets invalid module sizes to defaults", () => {
 		const matrix = buildMatrix([[1]]);
 
-		const svg = renderSvg(matrix, {
+		const { svg } = renderSvg(matrix, {
 			margin: -5,
 			moduleSize: Number.NaN,
 		});
@@ -91,7 +91,7 @@ describe("renderSvg", () => {
 			[1, 1],
 		]);
 
-		const svg = renderSvg(matrix, {
+		const { svg } = renderSvg(matrix, {
 			margin: 1,
 			size: 200,
 		});

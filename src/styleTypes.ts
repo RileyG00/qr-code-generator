@@ -50,3 +50,9 @@ export interface CornerDotOptions extends ColorSettings, CornerDotStyle {}
 export interface BackgroundOptions extends ColorSettings {
 	isTransparent?: boolean;
 }
+export interface DesignStyleOptions {
+	backgroundOptions?: BackgroundOptions;
+	dotOptions?: DotOptions;
+	cornerSquareOptions?: CornerSquareOptions;
+	cornerDotOptions?: CornerDotOptions;
+}

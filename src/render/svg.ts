@@ -6,6 +6,7 @@ import type {
 	CornerDotShapeType,
 	CornerSquareOptions,
 	CornerSquareShapeType,
+	DesignStyleOptions,
 	DotOptions,
 	DotShapeType,
 	GradientType,
@@ -26,10 +27,7 @@ export interface SvgRenderOptions {
 	margin?: number;
 	size?: number;
 	moduleSize?: number;
-	backgroundOptions?: BackgroundOptions;
-	dotOptions?: DotOptions;
-	cornerSquareOptions?: CornerSquareOptions;
-	cornerDotOptions?: CornerDotOptions;
+	styling?: DesignStyleOptions;
 	title?: string;
 	desc?: string;
 	shapeRendering?:
@@ -76,10 +74,23 @@ interface CornerRadii {
 	bl: number;
 }
 
+const convertFillToColorSettings = (
+	fill: ColorFillConfig,
+): ColorSettings => {
+	if (fill.kind === "solid") {
+		return { hexColors: [fill.color as HexColor] };
+	}
+	return {
+		hexColors: fill.config.colors.slice() as HexColor[],
+		gradient: fill.config.gradient,
+		rotation: extractRotationDegrees(fill.config.rotation),
+	};
+};
+
 export const renderSvg = (
 	matrix: QrMatrix,
 	options: SvgRenderOptions = {},
-): string => {
+): { svg: string; styling: DesignStyleOptions } => {
 	if (!matrix || typeof matrix.size !== "number" || matrix.size <= 0) {
 		throw new Error("renderSvg requires a matrix with a positive size.");
 	}
@@ -90,9 +101,9 @@ export const renderSvg = (
 		typeof options.size === "number" && Number.isFinite(options.size);
 	let moduleSize = sanitizeModuleSize(options.moduleSize);
 	const hasCustomStyleSelection =
-		options.dotOptions?.style !== undefined ||
-		options.cornerSquareOptions?.style !== undefined ||
-		options.cornerDotOptions?.style !== undefined;
+		options.styling?.dotOptions?.style !== undefined ||
+		options.styling?.cornerSquareOptions?.style !== undefined ||
+		options.styling?.cornerDotOptions?.style !== undefined;
 	const shapeRendering =
 		options.shapeRendering ??
 		(hasCustomStyleSelection
@@ -100,31 +111,31 @@ export const renderSvg = (
 			: DEFAULT_SHAPE_RENDERING);
 
 	const backgroundFill = resolveBackgroundFill(
-		options.backgroundOptions,
+		options.styling?.backgroundOptions,
 		DEFAULT_BACKGROUND_HEX_COLORS[0],
 	);
 	const dotFillConfig = resolveColorFill(
-		options.dotOptions,
+		options.styling?.dotOptions,
 		DEFAULT_FOREGROUND_HEX_COLORS,
 	);
-	const dotStyle = sanitizeDotStyle(options.dotOptions?.style);
-	const cornerSquareFillConfig = options.cornerSquareOptions
+	const dotStyle = sanitizeDotStyle(options.styling?.dotOptions?.style);
+	const cornerSquareFillConfig = options.styling?.cornerSquareOptions
 		? resolveColorFill(
-				options.cornerSquareOptions,
+				options.styling?.cornerSquareOptions,
 				DEFAULT_FOREGROUND_HEX_COLORS,
 			)
 		: undefined;
 	const cornerSquareStyle = sanitizeCornerSquareStyle(
-		options.cornerSquareOptions?.style,
+		options.styling?.cornerSquareOptions?.style,
 	);
-	const cornerDotFillConfig = options.cornerDotOptions
+	const cornerDotFillConfig = options.styling?.cornerDotOptions
 		? resolveColorFill(
-				options.cornerDotOptions,
+				options.styling?.cornerDotOptions,
 				DEFAULT_FOREGROUND_HEX_COLORS,
 			)
 		: undefined;
 	const cornerDotStyle = sanitizeCornerDotStyle(
-		options.cornerDotOptions?.style,
+		options.styling?.cornerDotOptions?.style,
 	);
 
 	const modulesWithMargin = matrix.size + marginModules * 2;
@@ -211,7 +222,27 @@ export const renderSvg = (
 	}
 
 	svg.push("</svg>");
-	return svg.join("");
+
+	const styling: DesignStyleOptions = {
+		backgroundOptions: {
+			...convertFillToColorSettings(backgroundFill.fill),
+			isTransparent: backgroundFill.isTransparent,
+		},
+		dotOptions: {
+			...convertFillToColorSettings(dotFillConfig),
+			style: dotStyle,
+		},
+		cornerSquareOptions: {
+			...convertFillToColorSettings(cornerSquareFillConfig ?? dotFillConfig),
+			style: cornerSquareStyle,
+		},
+		cornerDotOptions: {
+			...convertFillToColorSettings(cornerDotFillConfig ?? dotFillConfig),
+			style: cornerDotStyle,
+		},
+	};
+
+	return { svg: svg.join(""), styling };
 };
 
 const resolveBackgroundFill = (
