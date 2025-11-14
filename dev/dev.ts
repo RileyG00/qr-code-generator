@@ -17,11 +17,26 @@ const DEFAULT_TEXT = "Hello from App";
 export const writeTestSvg = (text: string = DEFAULT_TEXT): string => {
 	const dots: DotOptions = {
 		hexColors: ["#092effff", "#2b003aff"],
+		rotation: 45,
+		style: "classyRounded",
+	};
+	const cornerSquares: CornerSquareOptions = {
+		hexColors: ["#3c1053"],
+		style: "square",
+	};
+	const cornerDots: CornerDotOptions = {
+		hexColors: ["#3c1053"],
+		style: "square",
+	};
+	const background: BackgroundOptions = {
+		hexColors: ["#ffffffff"],
 	};
 
 	const options: SvgRenderOptions = {
-		shapeRendering: "optimizeSpeed",
 		dotOptions: dots,
+		cornerSquareOptions: cornerSquares,
+		cornerDotOptions: cornerDots,
+		backgroundOptions: background,
 	};
 
 	const { svg } = generateQrCode(text, undefined, options);

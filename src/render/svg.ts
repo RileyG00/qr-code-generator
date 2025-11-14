@@ -3,14 +3,20 @@ import type {
 	BackgroundOptions,
 	ColorSettings,
 	CornerDotOptions,
+	CornerDotShapeType,
 	CornerSquareOptions,
+	CornerSquareShapeType,
 	DotOptions,
+	DotShapeType,
 	GradientType,
 	HexColor,
 } from "../styleTypes";
 import {
 	DEFAULT_BACKGROUND_HEX_COLORS,
 	DEFAULT_BACKGROUND_TRANSPARENCY,
+	DEFAULT_CORNER_DOT_STYLE,
+	DEFAULT_CORNER_SQUARE_STYLE,
+	DEFAULT_DOT_STYLE,
 	DEFAULT_FOREGROUND_HEX_COLORS,
 	DEFAULT_GRADIENT,
 	DEFAULT_ROTATION,
@@ -59,6 +65,18 @@ interface GradientBounds {
 	height: number;
 }
 
+type ModuleShape =
+	| DotShapeType
+	| CornerSquareShapeType
+	| CornerDotShapeType;
+
+interface CornerRadii {
+	tl: number;
+	tr: number;
+	br: number;
+	bl: number;
+}
+
 export const renderSvg = (
 	matrix: QrMatrix,
 	options: SvgRenderOptions = {},
@@ -69,7 +87,15 @@ export const renderSvg = (
 
 	const marginModules = sanitizeMargin(options.margin);
 	const moduleSize = sanitizeModuleSize(options.moduleSize);
-	const shapeRendering = options.shapeRendering ?? DEFAULT_SHAPE_RENDERING;
+	const hasCustomStyleSelection =
+		options.dotOptions?.style !== undefined ||
+		options.cornerSquareOptions?.style !== undefined ||
+		options.cornerDotOptions?.style !== undefined;
+	const shapeRendering =
+		options.shapeRendering ??
+		(hasCustomStyleSelection
+			? "geometricPrecision"
+			: DEFAULT_SHAPE_RENDERING);
 
 	const backgroundFill = resolveBackgroundFill(
 		options.backgroundOptions,
@@ -79,18 +105,25 @@ export const renderSvg = (
 		options.dotOptions,
 		DEFAULT_FOREGROUND_HEX_COLORS,
 	);
+	const dotStyle = sanitizeDotStyle(options.dotOptions?.style);
 	const cornerSquareFillConfig = options.cornerSquareOptions
 		? resolveColorFill(
 				options.cornerSquareOptions,
 				DEFAULT_FOREGROUND_HEX_COLORS,
-			)
+		  )
 		: undefined;
+	const cornerSquareStyle = sanitizeCornerSquareStyle(
+		options.cornerSquareOptions?.style,
+	);
 	const cornerDotFillConfig = options.cornerDotOptions
 		? resolveColorFill(
 				options.cornerDotOptions,
 				DEFAULT_FOREGROUND_HEX_COLORS,
-			)
+		  )
 		: undefined;
+	const cornerDotStyle = sanitizeCornerDotStyle(
+		options.cornerDotOptions?.style,
+	);
 
 	const modulesWithMargin = matrix.size + marginModules * 2;
 	const pixelSize = modulesWithMargin * moduleSize;
@@ -159,8 +192,14 @@ export const renderSvg = (
 					: cornerType === "cornerSquare"
 						? cornerSquaresFillValue
 						: dotsFillValue;
+			const moduleStyle: ModuleShape =
+				cornerType === "cornerDot"
+					? cornerDotStyle
+					: cornerType === "cornerSquare"
+						? cornerSquareStyle
+						: dotStyle;
 			svg.push(
-				`<rect x="${x}" y="${y}" width="${moduleSize}" height="${moduleSize}" fill="${escapeAttribute(moduleFill)}" />`,
+				createModuleElement(moduleStyle, x, y, moduleSize, moduleFill),
 			);
 		}
 	}
@@ -201,6 +240,152 @@ const resolveColorFill = (
 			rotation: sanitizeRotationValue(options?.rotation),
 		},
 	};
+};
+
+const sanitizeDotStyle = (
+	style: DotOptions["style"],
+): DotShapeType => {
+	switch (style) {
+		case "dot":
+		case "rounded":
+		case "extraRounded":
+		case "classy":
+		case "classyRounded":
+		case "square":
+			return style;
+		default:
+			return DEFAULT_DOT_STYLE;
+	}
+};
+
+const sanitizeCornerSquareStyle = (
+	style: CornerSquareOptions["style"],
+): CornerSquareShapeType => {
+	switch (style) {
+		case "dot":
+		case "rounded":
+		case "square":
+			return style;
+		default:
+			return DEFAULT_CORNER_SQUARE_STYLE;
+	}
+};
+
+const sanitizeCornerDotStyle = (
+	style: CornerDotOptions["style"],
+): CornerDotShapeType => {
+	switch (style) {
+		case "dot":
+		case "square":
+			return style;
+		default:
+			return DEFAULT_CORNER_DOT_STYLE;
+	}
+};
+
+const createModuleElement = (
+	style: ModuleShape,
+	x: number,
+	y: number,
+	size: number,
+	fill: string,
+): string => {
+	const fillAttr = escapeAttribute(fill);
+	switch (style) {
+		case "dot": {
+			const radius = size / 2;
+			const cx = x + radius;
+			const cy = y + radius;
+			return `<circle cx="${cx}" cy="${cy}" r="${radius}" fill="${fillAttr}" />`;
+		}
+		case "rounded": {
+			const radius = size * 0.35;
+			return createRoundedRectElement(
+				x,
+				y,
+				size,
+				{ tl: radius, tr: radius, br: radius, bl: radius },
+				fillAttr,
+			);
+		}
+		case "extraRounded": {
+			const radius = size / 2;
+			return createRoundedRectElement(
+				x,
+				y,
+				size,
+				{ tl: radius, tr: radius, br: radius, bl: radius },
+				fillAttr,
+			);
+		}
+		case "classy": {
+			const primary = size / 2;
+			return createRoundedRectElement(
+				x,
+				y,
+				size,
+				{ tl: primary, tr: 0, br: primary, bl: 0 },
+				fillAttr,
+			);
+		}
+		case "classyRounded": {
+			const primary = size * 0.5;
+			const secondary = size * 0.2;
+			return createRoundedRectElement(
+				x,
+				y,
+				size,
+				{ tl: primary, tr: secondary, br: primary, bl: secondary },
+				fillAttr,
+			);
+		}
+		case "square":
+		default:
+			return `<rect x="${x}" y="${y}" width="${size}" height="${size}" fill="${fillAttr}" />`;
+	}
+};
+
+const createRoundedRectElement = (
+	x: number,
+	y: number,
+	size: number,
+	radii: CornerRadii,
+	fillAttr: string,
+): string => {
+	const d = buildRoundedRectPath(x, y, size, radii);
+	return `<path d="${d}" fill="${fillAttr}" />`;
+};
+
+const buildRoundedRectPath = (
+	x: number,
+	y: number,
+	size: number,
+	radii: CornerRadii,
+): string => {
+	const tl = clampRadius(radii.tl, size);
+	const tr = clampRadius(radii.tr, size);
+	const br = clampRadius(radii.br, size);
+	const bl = clampRadius(radii.bl, size);
+	const right = x + size;
+	const bottom = y + size;
+	return [
+		`M ${x + tl} ${y}`,
+		`H ${right - tr}`,
+		`Q ${right} ${y} ${right} ${y + tr}`,
+		`V ${bottom - br}`,
+		`Q ${right} ${bottom} ${right - br} ${bottom}`,
+		`H ${x + bl}`,
+		`Q ${x} ${bottom} ${x} ${bottom - bl}`,
+		`V ${y + tl}`,
+		`Q ${x} ${y} ${x + tl} ${y}`,
+		"Z",
+	].join(" ");
+};
+
+const clampRadius = (radius: number, size: number): number => {
+	const limit = size / 2;
+	if (!Number.isFinite(radius) || radius <= 0) return 0;
+	return Math.min(radius, limit);
 };
 
 const HEX_COLOR_REGEX =
@@ -333,4 +518,3 @@ const escapeText = (value: string): string =>
 	String(value).replace(/[&<>"']/g, (char) => ESCAPE_LOOKUP[char]);
 
 const escapeAttribute = (value: string): string => escapeText(value);
-

@@ -12,6 +12,18 @@ export const DEFAULT_GRADIENT: GradientType = "linear";
 export const DEFAULT_BACKGROUND_HEX_COLORS: readonly HexColor[] = ["#ffffff"];
 export const DEFAULT_FOREGROUND_HEX_COLORS: readonly HexColor[] = ["#000000"];
 export const DEFAULT_BACKGROUND_TRANSPARENCY = false;
+export type DotShapeType =
+	| Square
+	| Dot
+	| Rounded
+	| ExtraRounded
+	| Classy
+	| ClassyRounded;
+export type CornerSquareShapeType = Square | Dot | Rounded;
+export type CornerDotShapeType = Square | Dot;
+export const DEFAULT_DOT_STYLE: DotShapeType = "square";
+export const DEFAULT_CORNER_SQUARE_STYLE: CornerSquareShapeType = "square";
+export const DEFAULT_CORNER_DOT_STYLE: CornerDotShapeType = "square";
 
 export type Square = "square";
 export type Dot = "dot";
