@@ -44,7 +44,9 @@ export interface SvgRenderOptions {
 		| "optimizeSpeed";
 }
 
-const DEFAULT_MARGIN = 1;
+// The QR spec mandates a quiet zone of at least 4 modules on every side;
+// anything smaller frequently fails to scan on real-world cameras.
+const DEFAULT_MARGIN = 4;
 const DEFAULT_MODULE_SIZE = 8;
 const DEFAULT_CODE_SIZE = 256;
 const DEFAULT_SHAPE_RENDERING = "crispEdges";

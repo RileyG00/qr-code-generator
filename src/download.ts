@@ -328,6 +328,36 @@ const createVcardBlob = (payload: string | undefined): Blob => {
 	if (typeof payload !== "string" || payload.trim().length === 0) {
 		throw new Error("A vCard payload is required to export a VCard file.");
 	}
+
+	const normalized = payload.trim().toUpperCase();
+
+	if (!normalized.includes("BEGIN:VCARD")) {
+		throw new Error("vCard must start with 'BEGIN:VCARD'.");
+	}
+
+	if (!normalized.includes("END:VCARD")) {
+		throw new Error("vCard must end with 'END:VCARD'.");
+	}
+
+	if (!normalized.includes("VERSION:")) {
+		throw new Error("vCard must include a VERSION field (e.g., 'VERSION:3.0' or 'VERSION:4.0').");
+	}
+
+	// Check for identifier fields at line boundaries (start or after newline).
+	const lines = normalized.split("\n");
+	const hasIdentifier = lines.some(
+		(line) =>
+			line.startsWith("FN:") ||
+			line.startsWith("N:") ||
+			line.startsWith("EMAIL:"),
+	);
+
+	if (!hasIdentifier) {
+		throw new Error(
+			"vCard must include at least one of: FN (formatted name), N (name), or EMAIL.",
+		);
+	}
+
 	return new Blob([payload], { type: FORMAT_DESCRIPTOR.vcard.mimeType });
 };
 
@@ -337,7 +367,7 @@ export const downloadQrCode = async (
 ): Promise<DownloadQrCodeResult> => {
 	if (typeof svgMarkup !== "string" || svgMarkup.length === 0) {
 		throw new Error(
-			"A non-empty SVG string is required to download a QR code.",
+			"A non-empty string is required to download a QR code.",
 		);
 	}
 	const normalizedFormat = normalizeFormat(options.format);

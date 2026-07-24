@@ -7,6 +7,7 @@ import type {
 } from "../types";
 import {
 	canFitPayload,
+	DEFAULT_ECC,
 	getVersionCapacity,
 	selectVersionAndEcc,
 } from "../metadata/capacity";
@@ -18,7 +19,6 @@ import {
 	interleaveCodewordBlocks,
 } from "./ecc-codewords";
 
-const DEFAULT_ECC: EccLevel = "L";
 const ALPHANUMERIC_CHARSET = /^[-$%*+./:0-9A-Z ]*$/;
 
 const resolveMode = (input: string, opts?: QROptions): QRMode => {

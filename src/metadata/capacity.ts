@@ -107,6 +107,14 @@ const TOTAL_CODEWORDS: readonly number[] = [
 
 const ECC_LEVELS: readonly EccLevel[] = ["L", "M", "Q", "H"];
 
+/**
+ * Error-correction level used when the caller does not request one. "M"
+ * (~15% recovery) is the QR-spec default and scans far more reliably in the
+ * real world than "L" (~7%). Callers can still opt into "L" for maximum data
+ * capacity, or "Q"/"H" for higher tolerance, by passing `ecc` explicitly.
+ */
+export const DEFAULT_ECC: EccLevel = "M";
+
 export interface SelectionOptions {
 	minVersion?: VersionNumber;
 	maxVersion?: VersionNumber;
@@ -238,7 +246,7 @@ export const selectVersionAndEcc = (
 	);
 	const eccLevels: readonly EccLevel[] = options?.ecc
 		? [options.ecc]
-		: ECC_LEVELS;
+		: [DEFAULT_ECC];
 
 	for (const versionInfo of allowedVersions) {
 		for (const ecc of eccLevels) {
