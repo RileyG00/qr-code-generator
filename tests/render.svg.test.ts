@@ -23,12 +23,14 @@ describe("renderSvg", () => {
 
 		const { svg } = renderSvg(matrix);
 
-		expect(svg).toContain('viewBox="0 0 40 40"');
-		expect(svg).toContain('width="40"');
-		expect(svg).toContain('height="40"');
-		expect(svg).toContain('<rect width="40" height="40" fill="#ffffff" />');
+		// Default 4-module quiet zone: (3 + 4*2) modules * 8px = 88px, and the
+		// first dark module sits at offset 4*8 = 32px.
+		expect(svg).toContain('viewBox="0 0 88 88"');
+		expect(svg).toContain('width="88"');
+		expect(svg).toContain('height="88"');
+		expect(svg).toContain('<rect width="88" height="88" fill="#ffffff" />');
 		expect(svg).toMatch(
-			/<rect x="8" y="8" width="8" height="8" fill="#000000" \/>/,
+			/<rect x="32" y="32" width="8" height="8" fill="#000000" \/>/,
 		);
 	});
 

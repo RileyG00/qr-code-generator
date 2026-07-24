@@ -28,7 +28,7 @@
 npm install
 ```
 
-> Requires Node.js 22 or newer (`"engines": { "node": ">=22" }`).
+> Requires Node.js 24 or newer (`"engines": { "node": ">=24" }`).
 
 ## Quick start
 
@@ -101,14 +101,14 @@ Returns a `GenerateQrCodeResult`:
 | `version` | `1–40` | Auto | Force an explicit version. |
 | `minVersion` | `1–40` | `1` | Lower bound when letting the encoder pick the smallest fitting version. |
 | `maxVersion` | `1–40` | `40` | Upper bound for auto selection. |
-| `ecc` | `"L" \| "M" \| "Q" \| "H"` | `"M"` | Higher levels survive more damage but reduce payload capacity. |
+| `ecc` | `"L" \| "M" \| "Q" \| "H"` | `"M"` | Default is `"M"` (~15% recovery) for reliable real-world scanning. Higher levels (`"Q"`, `"H"`) survive more damage; `"L"` maximizes payload capacity. |
 | `mode` | `"byte" \| "alphanumeric"` | `"byte"` | Byte mode accepts arbitrary UTF‑8, alphanumeric is faster for restricted data. |
 
 ### `SvgRenderOptions`
 
 | Property | Type | Default | Description |
 | --- | --- | --- | --- |
-| `margin` | `number` | `1` module | Quiet-zone thickness in modules. |
+| `margin` | `number` | `4` modules | Quiet-zone thickness in modules. Defaults to the QR-spec minimum of `4`; smaller quiet zones often fail to scan on real cameras. |
 | `size` | `number` | Auto (`moduleSize` × modules) | Target pixel width/height; minimum enforced at 32px. |
 | `moduleSize` | `number` | `8` | Pixels per module when `size` is omitted. |
 | `styling` | `DesignStyleOptions` | See below | Color and shape settings. |
