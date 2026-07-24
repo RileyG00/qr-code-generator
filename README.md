@@ -1,6 +1,6 @@
 # QR-Code-Generator
 
-> Type-first QR code encoding, matrix masking, SVG rendering, and export utilities for Node 22+ runtimes and modern browsers.
+> Type-first QR code encoding, matrix masking, SVG rendering, and export utilities for Node 24+ runtimes and modern browsers.
 
 ## Table of contents
 

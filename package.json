@@ -43,7 +43,7 @@
 	},
 	"homepage": "https://github.com/RileyG00/qr-code-generator#readme",
 	"engines": {
-		"node": ">=22"
+		"node": ">=24"
 	},
 	"publishConfig": {
 		"access": "public"
