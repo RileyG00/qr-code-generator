@@ -88,7 +88,7 @@ Returns a `GenerateQrCodeResult`:
 | --- | --- | --- |
 | `svg` | `string` | Standalone `<svg>` markup sized according to your render options. |
 | `styling` | `DesignStyleOptions` | Sanitized styling that the renderer actually applied. |
-| `matrix` | `QrMatrix` | `{ size: number; modules: boolean[][] }` grid for low-level access (1 = dark). |
+| `matrix` | `QrMatrix` | `{ size: number; values: (0 \| 1 \| null)[][]; reserved: boolean[][] }` grid for low-level access (`values`: 1 = dark; `reserved`: function patterns and format/version info). |
 | `version` | `VersionNumber` | Version actually chosen after min/max + capacity checks. |
 | `ecc` | `EccLevel` | "L", "M", "Q", "H". |
 | `maskId` | `0–7` | Mask pattern index that won the penalty test. |
@@ -111,9 +111,10 @@ Returns a `GenerateQrCodeResult`:
 | `margin` | `number` | `4` modules | Quiet-zone thickness in modules. Defaults to the QR-spec minimum of `4`; smaller quiet zones often fail to scan on real cameras. |
 | `size` | `number` | Auto (`moduleSize` × modules) | Target pixel width/height; minimum enforced at 32px. |
 | `moduleSize` | `number` | `8` | Pixels per module when `size` is omitted. |
+| `shape` | `"square" \| "circle"` | `"square"` | `"circle"` places the code inside a circle and fills the surrounding space with decorative modules in your dot style. The scannable code and its finder patterns are unchanged, and a 1-module gap is kept around them. The canvas grows to fit the circle; `margin` is applied outside it. |
 | `styling` | `DesignStyleOptions` | See below | Color and shape settings. |
-| `title` | `string` | — | `<title>` tag for accessibility. |
-| `desc` | `string` | — | `<desc>` tag for accessibility. |
+| `title` | `string` | - | `<title>` tag for accessibility. |
+| `desc` | `string` | - | `<desc>` tag for accessibility. |
 | `shapeRendering` | "auto", "geometricPrecision", "crispEdges", "optimizeSpeed" | `crispEdges`, or `geometricPrecision` when you choose non-square shapes. |
 
 ## Styling & design types
@@ -205,7 +206,7 @@ const { svg } = generateQrCode("https://example.com", undefined, {
 | `fileName` | `string` | `"qr-code"` | Automatically sanitized; extension appended as needed. |
 | `size` | `number` | Derived from SVG | Raster export width/height in pixels. |
 | `quality` | `0–1` | Browser default | Applies to JPG/WEBP. PNG ignores it. |
-| `vcardPayload` | `string` | — | Required when `format === "vcard"`. |
+| `vcardPayload` | `string` | - | Required when `format === "vcard"`. |
 | `autoDownload` | `boolean` | `true` | Controls whether an `<a download>` click is triggered. |
 | `canvas` | `HTMLCanvasElement` | `OffscreenCanvas, Auto-provisioned` | Provide one if you need to reuse a canvas context. |
 

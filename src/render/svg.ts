@@ -13,6 +13,7 @@ import type {
 	HexColor,
 	ImageOptions,
 	ImageShape,
+	QrShape,
 } from "../styleTypes";
 import {
 	DEFAULT_BACKGROUND_HEX_COLORS,
@@ -27,6 +28,7 @@ import {
 	DEFAULT_IMAGE_SAFE_ZONE_MODULES,
 	DEFAULT_IMAGE_SCALE,
 	DEFAULT_IMAGE_SHAPE,
+	DEFAULT_QR_SHAPE,
 	DEFAULT_ROTATION,
 } from "../styleTypes";
 
@@ -34,6 +36,11 @@ export interface SvgRenderOptions {
 	margin?: number;
 	size?: number;
 	moduleSize?: number;
+	/**
+	 * "circle" wraps the code in a circle filled with decorative modules
+	 * drawn in the dot style. The scannable code itself stays square.
+	 */
+	shape?: QrShape;
 	styling?: DesignStyleOptions;
 	title?: string;
 	desc?: string;
@@ -58,6 +65,8 @@ const INNER_DOT_END = 4;
 const MIN_IMAGE_SCALE = 0.05;
 const MAX_IMAGE_SCALE = 0.4;
 const DEFAULT_IMAGE_CORNER_RADIUS_RATIO = 0.25;
+// Empty modules kept between the code and the circle's decorative modules.
+const CIRCLE_GAP_MODULES = 1;
 
 type GradientConfig = {
 	colors: readonly HexColor[];
@@ -195,7 +204,15 @@ export const renderSvg = (
 		resolvedCornerDotOptions?.style,
 	);
 
-	const modulesWithMargin = matrix.size + marginModules * 2;
+	const shape = sanitizeQrShape(options.shape);
+	// For a circle, pad the code out to the circle that circumscribes it
+	// (diameter = size * sqrt(2)); that padding holds decorative modules.
+	const circlePadding =
+		shape === "circle"
+			? Math.ceil((matrix.size * (Math.SQRT2 - 1)) / 2)
+			: 0;
+	const modulesWithMargin =
+		matrix.size + (circlePadding + marginModules) * 2;
 	let pixelSize = modulesWithMargin * moduleSize;
 	if (hasExplicitSize) {
 		pixelSize = sanitizedSize;
@@ -236,7 +253,7 @@ export const renderSvg = (
 	const backgroundFillValue = backgroundFill.isTransparent
 		? undefined
 		: resolveFillValue("background", backgroundFill.fill);
-	const offset = marginModules * moduleSize;
+	const offset = (marginModules + circlePadding) * moduleSize;
 	const qrSpan = matrix.size * moduleSize;
 	const imageOverlay = resolveImageOverlay(options.styling?.imageOptions, {
 		moduleSize,
@@ -327,6 +344,40 @@ export const renderSvg = (
 	const cornerDotPaths: string[] = [];
 
 	collectModulePaths(dotPaths, undefined, dotStyle);
+
+	if (circlePadding > 0) {
+		// Decorative modules live on the same grid as the code, in rows and
+		// columns from -circlePadding to size + circlePadding - 1.
+		const radius = matrix.size / 2 + circlePadding;
+		const seed = hashMatrix(matrix);
+		const isDecorationVisible = (r: number, c: number): boolean => {
+			const nearCode =
+				r >= -CIRCLE_GAP_MODULES &&
+				r < matrix.size + CIRCLE_GAP_MODULES &&
+				c >= -CIRCLE_GAP_MODULES &&
+				c < matrix.size + CIRCLE_GAP_MODULES;
+			if (nearCode) return false;
+			const dy = r + 0.5 - matrix.size / 2;
+			const dx = c + 0.5 - matrix.size / 2;
+			// Keep the whole module inside the circle.
+			if (Math.hypot(dx, dy) + Math.SQRT1_2 > radius) return false;
+			return isDecorationDark(seed, r, c);
+		};
+		for (let r = -circlePadding; r < matrix.size + circlePadding; r++) {
+			for (let c = -circlePadding; c < matrix.size + circlePadding; c++) {
+				if (!isDecorationVisible(r, c)) continue;
+				dotPaths.push(
+					createModulePath(
+						dotStyle,
+						offset + c * moduleSize,
+						offset + r * moduleSize,
+						moduleSize,
+						(dx, dy) => isDecorationVisible(r + dy, c + dx),
+					),
+				);
+			}
+		}
+	}
 
 	const drawWholeFinders = matrix.size >= MIN_QR_SIZE;
 	for (const origin of getFinderOrigins(matrix.size)) {
@@ -1122,6 +1173,31 @@ const getCornerModuleType = (
 		}
 	}
 	return undefined;
+};
+
+const sanitizeQrShape = (shape: QrShape | undefined): QrShape =>
+	shape === "circle" || shape === "square" ? shape : DEFAULT_QR_SHAPE;
+
+// Folds the matrix into a 32-bit seed so each code gets its own (but
+// repeatable) decoration pattern.
+const hashMatrix = (matrix: QrMatrix): number => {
+	let hash = 0x811c9dc5;
+	for (let r = 0; r < matrix.size; r++) {
+		for (let c = 0; c < matrix.size; c++) {
+			hash = Math.imul(hash ^ (matrix.values[r][c] ?? 0), 0x01000193);
+		}
+	}
+	return hash;
+};
+
+// Deterministic ~50% coin flip per position, so decoration looks like QR
+// data without copying real modules (which could mimic finder patterns).
+const isDecorationDark = (seed: number, r: number, c: number): boolean => {
+	let h = seed ^ Math.imul(r, 0x85ebca6b) ^ Math.imul(c, 0xc2b2ae35);
+	h = Math.imul(h ^ (h >>> 16), 0x7feb352d);
+	h = Math.imul(h ^ (h >>> 15), 0x846ca68b);
+	h ^= h >>> 16;
+	return (h & 1) === 1;
 };
 
 const sanitizeMargin = (value: number | undefined): number => {

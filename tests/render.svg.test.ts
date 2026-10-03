@@ -282,6 +282,61 @@ describe("renderSvg", () => {
 		expect(styling.cornerSquareOptions?.style).toBe("classy");
 		expect(styling.cornerDotOptions?.style).toBe("square");
 	});
+
+	test("circle shape pads the code out to its circumscribed circle", () => {
+		const { svg } = renderSvg(buildFinderMatrix(), {
+			margin: 0,
+			moduleSize: 10,
+			shape: "circle",
+		});
+
+		// ceil(21 * (sqrt(2) - 1) / 2) = 5 modules of padding per side.
+		expect(svg).toContain('viewBox="0 0 310 310"');
+		// The code shifts by the padding: module (10, 10) now starts at 150.
+		expect(svg).toContain("M 150 150 h 10 v 10 h -10 Z");
+	});
+
+	test("circle shape adds decorative modules only outside the gap and inside the circle", () => {
+		const options = {
+			margin: 0,
+			moduleSize: 10,
+			shape: "circle" as const,
+		};
+		const { svg } = renderSvg(buildFinderMatrix(), options);
+		const squares = [...svg.matchAll(/M (\d+) (\d+) h 10 v 10 h -10 Z/g)].map(
+			([, x, y]) => [Number(x), Number(y)],
+		);
+		const decorations = squares.filter(
+			([x, y]) => x < 50 || x >= 260 || y < 50 || y >= 260,
+		);
+
+		expect(decorations.length).toBeGreaterThan(0);
+		for (const [x, y] of decorations) {
+			// Not within the 1-module gap around the code (code spans 50..260).
+			expect(x < 40 || x >= 270 || y < 40 || y >= 270).toBe(true);
+			// Fully inside the 155px-radius circle centered at 155.
+			for (const [cx, cy] of [
+				[x, y],
+				[x + 10, y],
+				[x, y + 10],
+				[x + 10, y + 10],
+			]) {
+				expect(Math.hypot(cx - 155, cy - 155)).toBeLessThanOrEqual(155);
+			}
+		}
+		// Same matrix -> same decoration.
+		expect(renderSvg(buildFinderMatrix(), options).svg).toBe(svg);
+	});
+
+	test("unknown shapes fall back to square", () => {
+		const { svg } = renderSvg(buildFinderMatrix(), {
+			margin: 0,
+			moduleSize: 10,
+			shape: "hexagon" as unknown as "square",
+		});
+
+		expect(svg).toContain('viewBox="0 0 210 210"');
+	});
 });
 
 // 21x21 matrix containing only the three finder patterns.

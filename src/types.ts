@@ -73,8 +73,3 @@ export interface QRCodewords {
 	 */
 	allCodewords?: ByteBuffer;
 }
-
-export interface QRMatrix {
-	size: number; // 17 + 4 * version
-	modules: boolean[][]; // true = dark
-}

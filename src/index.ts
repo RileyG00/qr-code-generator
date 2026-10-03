@@ -60,7 +60,26 @@ export const generateQrCode = (
 	return { ...result, svg, styling };
 };
 
-export type { QROptions } from "./types";
+export type { QROptions, EccLevel, VersionNumber, QRMode } from "./types";
+export { DEFAULT_ECC } from "./metadata/capacity";
+export {
+	DEFAULT_BACKGROUND_HEX_COLORS,
+	DEFAULT_BACKGROUND_TRANSPARENCY,
+	DEFAULT_CORNER_DOT_STYLE,
+	DEFAULT_CORNER_SQUARE_STYLE,
+	DEFAULT_DOT_STYLE,
+	DEFAULT_FOREGROUND_HEX_COLORS,
+	DEFAULT_GRADIENT,
+	DEFAULT_IMAGE_OPACITY,
+	DEFAULT_IMAGE_PADDING_MODULES,
+	DEFAULT_IMAGE_SAFE_ZONE_MODULES,
+	DEFAULT_IMAGE_SCALE,
+	DEFAULT_IMAGE_SHAPE,
+	DEFAULT_QR_SHAPE,
+	DEFAULT_ROTATION,
+} from "./styleTypes";
+export type { MaskId, QrMatrix } from "./mask/types";
+export type { Matrix, Module, MaybeModule } from "./matrix/types";
 export type { SvgRenderOptions } from "./render/svg";
 export {
 	downloadQrCode,
@@ -91,6 +110,7 @@ export type {
 	DesignStyleOptions,
 	ImageOptions,
 	ImageShape,
+	QrShape,
 } from "./styleTypes";
 
 const ensureEccForImage = (
