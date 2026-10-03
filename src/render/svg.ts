@@ -13,6 +13,7 @@ import type {
 	HexColor,
 	ImageOptions,
 	ImageShape,
+	QrShape,
 } from "../styleTypes";
 import {
 	DEFAULT_BACKGROUND_HEX_COLORS,
@@ -27,6 +28,7 @@ import {
 	DEFAULT_IMAGE_SAFE_ZONE_MODULES,
 	DEFAULT_IMAGE_SCALE,
 	DEFAULT_IMAGE_SHAPE,
+	DEFAULT_QR_SHAPE,
 	DEFAULT_ROTATION,
 } from "../styleTypes";
 
@@ -34,6 +36,11 @@ export interface SvgRenderOptions {
 	margin?: number;
 	size?: number;
 	moduleSize?: number;
+	/**
+	 * "circle" wraps the code in a circle filled with decorative modules
+	 * drawn in the dot style. The scannable code itself stays square.
+	 */
+	shape?: QrShape;
 	styling?: DesignStyleOptions;
 	title?: string;
 	desc?: string;
@@ -51,11 +58,15 @@ const DEFAULT_MODULE_SIZE = 8;
 const DEFAULT_CODE_SIZE = 256;
 const DEFAULT_SHAPE_RENDERING = "crispEdges";
 const FINDER_PATTERN_SIZE = 7;
+// Version 1 (21x21) is the smallest matrix with three non-overlapping finders.
+const MIN_QR_SIZE = 21;
 const INNER_DOT_START = 2;
 const INNER_DOT_END = 4;
 const MIN_IMAGE_SCALE = 0.05;
 const MAX_IMAGE_SCALE = 0.4;
 const DEFAULT_IMAGE_CORNER_RADIUS_RATIO = 0.25;
+// Empty modules kept between the code and the circle's decorative modules.
+const CIRCLE_GAP_MODULES = 1;
 
 type GradientConfig = {
 	colors: readonly HexColor[];
@@ -77,14 +88,8 @@ interface GradientBounds {
 	height: number;
 }
 
-type ModuleShape = DotShapeType | CornerSquareShapeType | CornerDotShapeType;
-
-interface CornerRadii {
-	tl: number;
-	tr: number;
-	br: number;
-	bl: number;
-}
+// undefined = data module; otherwise the part of a finder pattern.
+type ModuleRegion = "cornerSquare" | "cornerDot" | undefined;
 
 interface DefinitionRegistry {
 	nextId: (prefix: string) => string;
@@ -107,9 +112,13 @@ interface ResolvedImageOverlay {
 		cornerRadius?: number;
 		shape: ImageShape;
 	};
-	safeZoneRect: { x: number; y: number; width: number; height: number };
+	// Modules whose centers fall inside are not drawn; absent when
+	// hideBackgroundDots is false.
+	safeZoneRect?: { x: number; y: number; width: number; height: number };
 	paddingModules: number;
 	safeZoneModules: number;
+	hideBackgroundDots: boolean;
+	hideBackground: boolean;
 	scale: number;
 	pixelSize: number;
 	shape: ImageShape;
@@ -199,7 +208,15 @@ export const renderSvg = (
 		resolvedCornerDotOptions?.style,
 	);
 
-	const modulesWithMargin = matrix.size + marginModules * 2;
+	const shape = sanitizeQrShape(options.shape);
+	// For a circle, pad the code out to the circle that circumscribes it
+	// (diameter = size * sqrt(2)); that padding holds decorative modules.
+	const circlePadding =
+		shape === "circle"
+			? Math.ceil((matrix.size * (Math.SQRT2 - 1)) / 2)
+			: 0;
+	const modulesWithMargin =
+		matrix.size + (circlePadding + marginModules) * 2;
 	let pixelSize = modulesWithMargin * moduleSize;
 	if (hasExplicitSize) {
 		pixelSize = sanitizedSize;
@@ -240,7 +257,7 @@ export const renderSvg = (
 	const backgroundFillValue = backgroundFill.isTransparent
 		? undefined
 		: resolveFillValue("background", backgroundFill.fill);
-	const offset = marginModules * moduleSize;
+	const offset = (marginModules + circlePadding) * moduleSize;
 	const qrSpan = matrix.size * moduleSize;
 	const imageOverlay = resolveImageOverlay(options.styling?.imageOptions, {
 		moduleSize,
@@ -274,38 +291,159 @@ export const renderSvg = (
 	}
 
 	const safeZoneRect = imageOverlay?.safeZoneRect;
-	for (let r = 0; r < matrix.size; r++) {
-		for (let c = 0; c < matrix.size; c++) {
-			if (matrix.values[r][c] !== 1) continue;
-			const x = offset + c * moduleSize;
-			const y = offset + r * moduleSize;
-			if (
-				safeZoneRect &&
-				isPointInsideRect(
-					x + moduleSize / 2,
-					y + moduleSize / 2,
-					safeZoneRect,
-				)
-			) {
-				continue;
+	// A module is drawn when it is dark, belongs to the requested region
+	// (data vs. finder ring vs. finder center) and is not covered by the logo.
+	// Neighbor lookups use the same predicate so connected shapes only merge
+	// with modules that are actually rendered in the same style.
+	const isModuleVisible = (
+		r: number,
+		c: number,
+		region: ModuleRegion,
+	): boolean => {
+		if (r < 0 || c < 0 || r >= matrix.size || c >= matrix.size) {
+			return false;
+		}
+		if (matrix.values[r][c] !== 1) return false;
+		if (getCornerModuleType(r, c, matrix.size) !== region) return false;
+		if (
+			safeZoneRect &&
+			isPointInsideRect(
+				offset + c * moduleSize + moduleSize / 2,
+				offset + r * moduleSize + moduleSize / 2,
+				safeZoneRect,
+			)
+		) {
+			return false;
+		}
+		return true;
+	};
+	const collectModulePaths = (
+		target: string[],
+		region: ModuleRegion,
+		style: DotShapeType,
+		rows: [number, number] = [0, matrix.size],
+		cols: [number, number] = [0, matrix.size],
+	): void => {
+		for (let r = rows[0]; r < rows[1]; r++) {
+			for (let c = cols[0]; c < cols[1]; c++) {
+				if (!isModuleVisible(r, c, region)) continue;
+				target.push(
+					createModulePath(
+						style,
+						offset + c * moduleSize,
+						offset + r * moduleSize,
+						moduleSize,
+						(dx, dy) => isModuleVisible(r + dy, c + dx, region),
+					),
+				);
 			}
-			const cornerType = getCornerModuleType(r, c, matrix.size);
-			const moduleFill =
-				cornerType === "cornerDot"
-					? cornerDotsFillValue
-					: cornerType === "cornerSquare"
-						? cornerSquaresFillValue
-						: dotsFillValue;
-			const moduleStyle: ModuleShape =
-				cornerType === "cornerDot"
-					? cornerDotStyle
-					: cornerType === "cornerSquare"
-						? cornerSquareStyle
-						: dotStyle;
-			svg.push(
-				createModuleElement(moduleStyle, x, y, moduleSize, moduleFill),
+		}
+	};
+
+	// Each group is emitted as a single <path> so adjacent modules rasterize
+	// as one shape (no anti-aliasing seams between them) and the SVG stays
+	// compact. Modules never overlap, so evenodd only affects finder rings.
+	const dotPaths: string[] = [];
+	const cornerSquarePaths: string[] = [];
+	const cornerDotPaths: string[] = [];
+
+	collectModulePaths(dotPaths, undefined, dotStyle);
+
+	if (circlePadding > 0) {
+		// Decorative modules live on the same grid as the code, in rows and
+		// columns from -circlePadding to size + circlePadding - 1.
+		const radius = matrix.size / 2 + circlePadding;
+		const seed = hashMatrix(matrix);
+		const isDecorationVisible = (r: number, c: number): boolean => {
+			const nearCode =
+				r >= -CIRCLE_GAP_MODULES &&
+				r < matrix.size + CIRCLE_GAP_MODULES &&
+				c >= -CIRCLE_GAP_MODULES &&
+				c < matrix.size + CIRCLE_GAP_MODULES;
+			if (nearCode) return false;
+			const dy = r + 0.5 - matrix.size / 2;
+			const dx = c + 0.5 - matrix.size / 2;
+			// Keep the whole module inside the circle.
+			if (Math.hypot(dx, dy) + Math.SQRT1_2 > radius) return false;
+			return isDecorationDark(seed, r, c);
+		};
+		for (let r = -circlePadding; r < matrix.size + circlePadding; r++) {
+			for (let c = -circlePadding; c < matrix.size + circlePadding; c++) {
+				if (!isDecorationVisible(r, c)) continue;
+				dotPaths.push(
+					createModulePath(
+						dotStyle,
+						offset + c * moduleSize,
+						offset + r * moduleSize,
+						moduleSize,
+						(dx, dy) => isDecorationVisible(r + dy, c + dx),
+					),
+				);
+			}
+		}
+	}
+
+	const drawWholeFinders = matrix.size >= MIN_QR_SIZE;
+	for (const origin of getFinderOrigins(matrix.size)) {
+		const rows: [number, number] = [
+			origin.row,
+			origin.row + FINDER_PATTERN_SIZE,
+		];
+		const cols: [number, number] = [
+			origin.col,
+			origin.col + FINDER_PATTERN_SIZE,
+		];
+		const x = offset + origin.col * moduleSize;
+		const y = offset + origin.row * moduleSize;
+
+		if (drawWholeFinders && isWholeCornerSquareStyle(cornerSquareStyle)) {
+			cornerSquarePaths.push(
+				createCornerSquarePath(
+					cornerSquareStyle,
+					x,
+					y,
+					moduleSize * FINDER_PATTERN_SIZE,
+				),
+			);
+		} else {
+			collectModulePaths(
+				cornerSquarePaths,
+				"cornerSquare",
+				cornerSquareStyle,
+				rows,
+				cols,
 			);
 		}
+
+		if (drawWholeFinders && isWholeCornerDotStyle(cornerDotStyle)) {
+			const dotSpan = (INNER_DOT_END - INNER_DOT_START + 1) * moduleSize;
+			cornerDotPaths.push(
+				createCirclePath(
+					x + INNER_DOT_START * moduleSize,
+					y + INNER_DOT_START * moduleSize,
+					dotSpan,
+				),
+			);
+		} else {
+			collectModulePaths(
+				cornerDotPaths,
+				"cornerDot",
+				cornerDotStyle,
+				rows,
+				cols,
+			);
+		}
+	}
+
+	for (const [paths, fill] of [
+		[dotPaths, dotsFillValue],
+		[cornerSquarePaths, cornerSquaresFillValue],
+		[cornerDotPaths, cornerDotsFillValue],
+	] as const) {
+		if (paths.length === 0) continue;
+		svg.push(
+			`<path d="${paths.join(" ")}" fill="${escapeAttribute(fill)}" fill-rule="evenodd" />`,
+		);
 	}
 
 	if (imageOverlay?.background) {
@@ -376,6 +514,8 @@ export const renderSvg = (
 			pixelSize: imageOverlay.pixelSize,
 			safeZoneModules: imageOverlay.safeZoneModules,
 			paddingModules: imageOverlay.paddingModules,
+			hideBackgroundDots: imageOverlay.hideBackgroundDots,
+			hideBackground: imageOverlay.hideBackground,
 			shape: imageOverlay.shape,
 			cornerRadius: imageOverlay.cornerRadius,
 			backgroundColor: imageOverlay.backgroundColor,
@@ -421,143 +561,300 @@ const resolveColorFill = (
 	};
 };
 
-const sanitizeDotStyle = (style: DotOptions["style"]): DotShapeType => {
-	switch (style) {
-		case "dot":
-		case "rounded":
-		case "extraRounded":
-		case "classy":
-		case "classyRounded":
-		case "square":
-			return style;
-		default:
-			return DEFAULT_DOT_STYLE;
-	}
-};
+const sanitizeDotStyle = (style: DotOptions["style"]): DotShapeType =>
+	isShapeStyle(style) ? style : DEFAULT_DOT_STYLE;
+
+const SHAPE_STYLES: readonly DotShapeType[] = [
+	"square",
+	"dot",
+	"rounded",
+	"extraRounded",
+	"classy",
+	"classyRounded",
+];
+
+const isShapeStyle = (style: unknown): style is DotShapeType =>
+	SHAPE_STYLES.includes(style as DotShapeType);
 
 const sanitizeCornerSquareStyle = (
 	style: CornerSquareOptions["style"],
-): CornerSquareShapeType => {
-	switch (style) {
-		case "dot":
-		case "rounded":
-		case "square":
-			return style;
-		default:
-			return DEFAULT_CORNER_SQUARE_STYLE;
-	}
-};
+): CornerSquareShapeType =>
+	isShapeStyle(style) ? style : DEFAULT_CORNER_SQUARE_STYLE;
 
 const sanitizeCornerDotStyle = (
 	style: CornerDotOptions["style"],
-): CornerDotShapeType => {
+): CornerDotShapeType =>
+	isShapeStyle(style) ? style : DEFAULT_CORNER_DOT_STYLE;
+
+// Finder styles drawn as a single shape across the whole 7x7 ring / 3x3
+// center. Every other style is drawn module-by-module like the data dots.
+const isWholeCornerSquareStyle = (style: CornerSquareShapeType): boolean =>
+	style === "dot" || style === "extraRounded";
+
+const isWholeCornerDotStyle = (style: CornerDotShapeType): boolean =>
+	style === "dot";
+
+/*
+ * Module and finder geometry below is adapted from qr-code-styling
+ * (https://github.com/kozakdenys/qr-code-styling), MIT License,
+ * Copyright (c) 2019 Denys Kozak.
+ */
+
+// Reports whether the module offset by (dx, dy) columns/rows is drawn.
+type NeighborLookup = (dx: number, dy: number) => boolean;
+
+// Clockwise quarter turns around the module center.
+type QuarterTurns = 0 | 1 | 2 | 3;
+
+type PathCommand =
+	| { op: "M" | "L"; x: number; y: number }
+	| {
+			op: "A";
+			r: number;
+			largeArc: 0 | 1;
+			sweep: 0 | 1;
+			x: number;
+			y: number;
+	  }
+	| { op: "Z" };
+
+// Returns path data for one module; callers join modules into one <path>.
+const createModulePath = (
+	style: DotShapeType,
+	x: number,
+	y: number,
+	size: number,
+	hasNeighbor: NeighborLookup,
+): string => {
 	switch (style) {
 		case "dot":
+			return createCirclePath(x, y, size);
+		case "rounded":
+		case "extraRounded":
+			return createRoundedModulePath(
+				style === "extraRounded",
+				x,
+				y,
+				size,
+				hasNeighbor,
+			);
+		case "classy":
+		case "classyRounded":
+			return createClassyModulePath(
+				style === "classyRounded",
+				x,
+				y,
+				size,
+				hasNeighbor,
+			);
 		case "square":
-			return style;
 		default:
-			return DEFAULT_CORNER_DOT_STYLE;
+			return createSquarePath(x, y, size);
 	}
 };
 
-const createModuleElement = (
-	style: ModuleShape,
+// Isolated modules become circles, line ends become half-pills, and outer
+// corners of a run are rounded so neighboring modules flow together.
+const createRoundedModulePath = (
+	extra: boolean,
 	x: number,
 	y: number,
 	size: number,
-	fill: string,
+	hasNeighbor: NeighborLookup,
 ): string => {
-	const fillAttr = escapeAttribute(fill);
-	switch (style) {
-		case "dot": {
-			const radius = size / 2;
-			const cx = x + radius;
-			const cy = y + radius;
-			return `<circle cx="${cx}" cy="${cy}" r="${radius}" fill="${fillAttr}" />`;
-		}
-		case "rounded": {
-			const radius = size * 0.35;
-			return createRoundedRectElement(
-				x,
-				y,
-				size,
-				{ tl: radius, tr: radius, br: radius, bl: radius },
-				fillAttr,
-			);
-		}
-		case "extraRounded": {
-			const radius = size / 2;
-			return createRoundedRectElement(
-				x,
-				y,
-				size,
-				{ tl: radius, tr: radius, br: radius, bl: radius },
-				fillAttr,
-			);
-		}
-		case "classy": {
-			const primary = size / 2;
-			return createRoundedRectElement(
-				x,
-				y,
-				size,
-				{ tl: primary, tr: 0, br: primary, bl: 0 },
-				fillAttr,
-			);
-		}
-		case "classyRounded": {
-			const primary = size * 0.5;
-			const secondary = size * 0.2;
-			return createRoundedRectElement(
-				x,
-				y,
-				size,
-				{ tl: primary, tr: secondary, br: primary, bl: secondary },
-				fillAttr,
-			);
-		}
-		case "square":
-		default:
-			return `<rect x="${x}" y="${y}" width="${size}" height="${size}" fill="${fillAttr}" />`;
+	const left = hasNeighbor(-1, 0);
+	const right = hasNeighbor(1, 0);
+	const top = hasNeighbor(0, -1);
+	const bottom = hasNeighbor(0, 1);
+	const count = +left + +right + +top + +bottom;
+
+	if (count === 0) {
+		return createCirclePath(x, y, size);
 	}
+	if (count > 2 || (left && right) || (top && bottom)) {
+		return createSquarePath(x, y, size);
+	}
+	if (count === 2) {
+		const turns: QuarterTurns =
+			left && top ? 1 : top && right ? 2 : right && bottom ? 3 : 0;
+		const commands = extra
+			? cornerExtraRoundedCommands(size)
+			: cornerRoundedCommands(size);
+		return createRotatedPath(x, y, size, turns, commands);
+	}
+	const turns: QuarterTurns = top ? 1 : right ? 2 : bottom ? 3 : 0;
+	return createRotatedPath(x, y, size, turns, sideRoundedCommands(size));
 };
 
-const createRoundedRectElement = (
+// Rounds the top-left and bottom-right edges of each run, giving the
+// leaf-like "classy" look.
+const createClassyModulePath = (
+	extra: boolean,
 	x: number,
 	y: number,
 	size: number,
-	radii: CornerRadii,
-	fillAttr: string,
+	hasNeighbor: NeighborLookup,
 ): string => {
-	const d = buildRoundedRectPath(x, y, size, radii);
-	return `<path d="${d}" fill="${fillAttr}" />`;
+	const left = hasNeighbor(-1, 0);
+	const right = hasNeighbor(1, 0);
+	const top = hasNeighbor(0, -1);
+	const bottom = hasNeighbor(0, 1);
+	const cornerCommands = extra
+		? cornerExtraRoundedCommands(size)
+		: cornerRoundedCommands(size);
+
+	if (!left && !right && !top && !bottom) {
+		return createRotatedPath(x, y, size, 1, cornersRoundedCommands(size));
+	}
+	if (!left && !top) {
+		return createRotatedPath(x, y, size, 3, cornerCommands);
+	}
+	if (!right && !bottom) {
+		return createRotatedPath(x, y, size, 1, cornerCommands);
+	}
+	return createSquarePath(x, y, size);
 };
 
-const buildRoundedRectPath = (
+// Base shapes are expressed in module-local coordinates (0..size) and
+// rotated into place by createRotatedPath.
+
+// Right side rounded into a half circle.
+const sideRoundedCommands = (s: number): PathCommand[] => [
+	{ op: "M", x: 0, y: 0 },
+	{ op: "L", x: 0, y: s },
+	{ op: "L", x: s / 2, y: s },
+	{ op: "A", r: s / 2, largeArc: 0, sweep: 0, x: s / 2, y: 0 },
+	{ op: "Z" },
+];
+
+// Top-right corner rounded with a half-module radius.
+const cornerRoundedCommands = (s: number): PathCommand[] => [
+	{ op: "M", x: 0, y: 0 },
+	{ op: "L", x: 0, y: s },
+	{ op: "L", x: s, y: s },
+	{ op: "L", x: s, y: s / 2 },
+	{ op: "A", r: s / 2, largeArc: 0, sweep: 0, x: s / 2, y: 0 },
+	{ op: "Z" },
+];
+
+// Top-right corner rounded with a full-module radius.
+const cornerExtraRoundedCommands = (s: number): PathCommand[] => [
+	{ op: "M", x: 0, y: 0 },
+	{ op: "L", x: 0, y: s },
+	{ op: "L", x: s, y: s },
+	{ op: "A", r: s, largeArc: 0, sweep: 0, x: 0, y: 0 },
+	{ op: "Z" },
+];
+
+// Bottom-left and top-right corners rounded.
+const cornersRoundedCommands = (s: number): PathCommand[] => [
+	{ op: "M", x: 0, y: 0 },
+	{ op: "L", x: 0, y: s / 2 },
+	{ op: "A", r: s / 2, largeArc: 0, sweep: 0, x: s / 2, y: s },
+	{ op: "L", x: s, y: s },
+	{ op: "L", x: s, y: s / 2 },
+	{ op: "A", r: s / 2, largeArc: 0, sweep: 0, x: s / 2, y: 0 },
+	{ op: "Z" },
+];
+
+const createRotatedPath = (
 	x: number,
 	y: number,
 	size: number,
-	radii: CornerRadii,
+	turns: QuarterTurns,
+	commands: PathCommand[],
 ): string => {
-	const tl = clampRadius(radii.tl, size);
-	const tr = clampRadius(radii.tr, size);
-	const br = clampRadius(radii.br, size);
-	const bl = clampRadius(radii.bl, size);
-	const right = x + size;
-	const bottom = y + size;
+	const half = size / 2;
+	const place = (px: number, py: number): string => {
+		let dx = px - half;
+		let dy = py - half;
+		// SVG y grows downward, so (dx, dy) -> (-dy, dx) is a clockwise turn.
+		for (let i = 0; i < turns; i++) {
+			[dx, dy] = [-dy, dx];
+		}
+		return `${formatNumber(x + half + dx)} ${formatNumber(y + half + dy)}`;
+	};
+	// Rotation preserves orientation, so arc sweep flags stay valid.
+	return commands
+		.map((cmd) => {
+			switch (cmd.op) {
+				case "M":
+				case "L":
+					return `${cmd.op} ${place(cmd.x, cmd.y)}`;
+				case "A":
+					return `A ${formatNumber(cmd.r)} ${formatNumber(cmd.r)} 0 ${cmd.largeArc} ${cmd.sweep} ${place(cmd.x, cmd.y)}`;
+				case "Z":
+					return "Z";
+			}
+		})
+		.join(" ");
+};
+
+const createSquarePath = (x: number, y: number, size: number): string => {
+	const s = formatNumber(size);
+	return `M ${formatNumber(x)} ${formatNumber(y)} h ${s} v ${s} h -${s} Z`;
+};
+
+// Circle inscribed in the size x size box at (x, y), as two half arcs.
+const createCirclePath = (x: number, y: number, size: number): string =>
+	circlePath(x + size / 2, y + size / 2, size / 2);
+
+const circlePath = (cx: number, cy: number, r: number): string => {
+	const left = formatNumber(cx - r);
+	const right = formatNumber(cx + r);
+	const y = formatNumber(cy);
+	const radius = formatNumber(r);
+	return `M ${left} ${y} A ${radius} ${radius} 0 1 0 ${right} ${y} A ${radius} ${radius} 0 1 0 ${left} ${y} Z`;
+};
+
+// Path data for the 7x7 finder ring as one shape; the hole relies on
+// fill-rule="evenodd". `size` spans the whole ring.
+const createCornerSquarePath = (
+	style: CornerSquareShapeType,
+	x: number,
+	y: number,
+	size: number,
+): string => {
+	const unit = size / FINDER_PATTERN_SIZE;
+	if (style === "dot") {
+		const cx = x + size / 2;
+		const cy = y + size / 2;
+		return `${circlePath(cx, cy, size / 2)} ${circlePath(cx, cy, size / 2 - unit)}`;
+	}
+
+	// extraRounded: rounded-rect ring with 2.5-module outer corners and
+	// 1.5-module inner corners.
+	const n = (value: number): string => formatNumber(value);
+	const outer = 2.5 * unit;
+	const inner = 1.5 * unit;
+	const straight = 2 * unit;
 	return [
-		`M ${x + tl} ${y}`,
-		`H ${right - tr}`,
-		`Q ${right} ${y} ${right} ${y + tr}`,
-		`V ${bottom - br}`,
-		`Q ${right} ${bottom} ${right - br} ${bottom}`,
-		`H ${x + bl}`,
-		`Q ${x} ${bottom} ${x} ${bottom - bl}`,
-		`V ${y + tl}`,
-		`Q ${x} ${y} ${x + tl} ${y}`,
+		`M ${n(x)} ${n(y + outer)}`,
+		`v ${n(straight)}`,
+		`a ${n(outer)} ${n(outer)} 0 0 0 ${n(outer)} ${n(outer)}`,
+		`h ${n(straight)}`,
+		`a ${n(outer)} ${n(outer)} 0 0 0 ${n(outer)} ${n(-outer)}`,
+		`v ${n(-straight)}`,
+		`a ${n(outer)} ${n(outer)} 0 0 0 ${n(-outer)} ${n(-outer)}`,
+		`h ${n(-straight)}`,
+		`a ${n(outer)} ${n(outer)} 0 0 0 ${n(-outer)} ${n(outer)}`,
+		"Z",
+		`M ${n(x + outer)} ${n(y + unit)}`,
+		`h ${n(straight)}`,
+		`a ${n(inner)} ${n(inner)} 0 0 1 ${n(inner)} ${n(inner)}`,
+		`v ${n(straight)}`,
+		`a ${n(inner)} ${n(inner)} 0 0 1 ${n(-inner)} ${n(inner)}`,
+		`h ${n(-straight)}`,
+		`a ${n(inner)} ${n(inner)} 0 0 1 ${n(-inner)} ${n(-inner)}`,
+		`v ${n(-straight)}`,
+		`a ${n(inner)} ${n(inner)} 0 0 1 ${n(inner)} ${n(-inner)}`,
 		"Z",
 	].join(" ");
 };
+
+// Trims floating-point noise (e.g. 10.400000000000002) from path output.
+const formatNumber = (value: number): string =>
+	String(Math.round(value * 1e4) / 1e4);
 
 const resolveImageOverlay = (
 	options: ImageOptions | undefined,
@@ -603,7 +900,13 @@ const resolveImageOverlay = (
 	);
 	const opacity = sanitizeOpacity(options.opacity);
 
-	const shouldRenderBackground = options.hideBackground !== true;
+	// Mirrors qr-code-styling: modules under the image are removed unless
+	// explicitly kept, in which case they stay visible behind it.
+	const hideBackgroundDots = options.hideBackgroundDots !== false;
+	// Keeping the dots implies they should show through transparent parts
+	// of the image, so the plate defaults off in that case.
+	const hideBackground = options.hideBackground ?? !hideBackgroundDots;
+	const shouldRenderBackground = !hideBackground;
 	const backgroundColor = options.backgroundColor ?? "#ffffff";
 	const imageCornerRadius =
 		shape === "rounded"
@@ -648,14 +951,18 @@ const resolveImageOverlay = (
 					shape,
 				}
 			: undefined,
-		safeZoneRect: {
-			x: safeZoneX,
-			y: safeZoneY,
-			width: safeZoneWidth,
-			height: safeZoneWidth,
-		},
+		safeZoneRect: hideBackgroundDots
+			? {
+					x: safeZoneX,
+					y: safeZoneY,
+					width: safeZoneWidth,
+					height: safeZoneWidth,
+				}
+			: undefined,
 		paddingModules,
 		safeZoneModules,
+		hideBackgroundDots,
+		hideBackground,
 		scale: pixelSize / qrSpan,
 		pixelSize,
 		shape,
@@ -781,12 +1088,6 @@ const isPointInsideRect = (
 	);
 };
 
-const clampRadius = (radius: number, size: number): number => {
-	const limit = size / 2;
-	if (!Number.isFinite(radius) || radius <= 0) return 0;
-	return Math.min(radius, limit);
-};
-
 const HEX_COLOR_REGEX =
 	/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
 
@@ -856,17 +1157,18 @@ const createGradientStops = (colors: readonly HexColor[]): string => {
 		.join("");
 };
 
+const getFinderOrigins = (size: number): { row: number; col: number }[] => [
+	{ row: 0, col: 0 },
+	{ row: 0, col: size - FINDER_PATTERN_SIZE },
+	{ row: size - FINDER_PATTERN_SIZE, col: 0 },
+];
+
 const getCornerModuleType = (
 	row: number,
 	col: number,
 	size: number,
-): "cornerSquare" | "cornerDot" | undefined => {
-	const origins = [
-		{ row: 0, col: 0 },
-		{ row: 0, col: size - FINDER_PATTERN_SIZE },
-		{ row: size - FINDER_PATTERN_SIZE, col: 0 },
-	];
-	for (const origin of origins) {
+): ModuleRegion => {
+	for (const origin of getFinderOrigins(size)) {
 		if (
 			row >= origin.row &&
 			row < origin.row + FINDER_PATTERN_SIZE &&
@@ -887,6 +1189,31 @@ const getCornerModuleType = (
 		}
 	}
 	return undefined;
+};
+
+const sanitizeQrShape = (shape: QrShape | undefined): QrShape =>
+	shape === "circle" || shape === "square" ? shape : DEFAULT_QR_SHAPE;
+
+// Folds the matrix into a 32-bit seed so each code gets its own (but
+// repeatable) decoration pattern.
+const hashMatrix = (matrix: QrMatrix): number => {
+	let hash = 0x811c9dc5;
+	for (let r = 0; r < matrix.size; r++) {
+		for (let c = 0; c < matrix.size; c++) {
+			hash = Math.imul(hash ^ (matrix.values[r][c] ?? 0), 0x01000193);
+		}
+	}
+	return hash;
+};
+
+// Deterministic ~50% coin flip per position, so decoration looks like QR
+// data without copying real modules (which could mimic finder patterns).
+const isDecorationDark = (seed: number, r: number, c: number): boolean => {
+	let h = seed ^ Math.imul(r, 0x85ebca6b) ^ Math.imul(c, 0xc2b2ae35);
+	h = Math.imul(h ^ (h >>> 16), 0x7feb352d);
+	h = Math.imul(h ^ (h >>> 15), 0x846ca68b);
+	h ^= h >>> 16;
+	return (h & 1) === 1;
 };
 
 const sanitizeMargin = (value: number | undefined): number => {

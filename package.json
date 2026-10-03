@@ -1,6 +1,6 @@
 {
 	"name": "qr-code-render-kit",
-	"version": "0.0.1-beta.2",
+	"version": "1.0.0",
 	"description": "A type safe, typescript-first SVG QR code generator that supports multiple file download formats, styling options, customization options for refinded QR code generation.",
 	"main": "./dist/index.js",
 	"module": "./dist/index.js",
@@ -43,7 +43,7 @@
 	},
 	"homepage": "https://github.com/RileyG00/qr-code-generator#readme",
 	"engines": {
-		"node": ">=22"
+		"node": ">=24"
 	},
 	"publishConfig": {
 		"access": "public"

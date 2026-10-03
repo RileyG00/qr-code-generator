@@ -1,6 +1,6 @@
 # QR-Code-Generator
 
-> Type-first QR code encoding, matrix masking, SVG rendering, and export utilities for Node 22+ runtimes and modern browsers.
+> Type-first QR code encoding, matrix masking, SVG rendering, and export utilities for Node 24+ runtimes and modern browsers.
 
 ## Table of contents
 
@@ -88,7 +88,7 @@ Returns a `GenerateQrCodeResult`:
 | --- | --- | --- |
 | `svg` | `string` | Standalone `<svg>` markup sized according to your render options. |
 | `styling` | `DesignStyleOptions` | Sanitized styling that the renderer actually applied. |
-| `matrix` | `QrMatrix` | `{ size: number; modules: boolean[][] }` grid for low-level access (1 = dark). |
+| `matrix` | `QrMatrix` | `{ size: number; values: (0 \| 1 \| null)[][]; reserved: boolean[][] }` grid for low-level access (`values`: 1 = dark; `reserved`: function patterns and format/version info). |
 | `version` | `VersionNumber` | Version actually chosen after min/max + capacity checks. |
 | `ecc` | `EccLevel` | "L", "M", "Q", "H". |
 | `maskId` | `0–7` | Mask pattern index that won the penalty test. |
@@ -111,9 +111,10 @@ Returns a `GenerateQrCodeResult`:
 | `margin` | `number` | `4` modules | Quiet-zone thickness in modules. Defaults to the QR-spec minimum of `4`; smaller quiet zones often fail to scan on real cameras. |
 | `size` | `number` | Auto (`moduleSize` × modules) | Target pixel width/height; minimum enforced at 32px. |
 | `moduleSize` | `number` | `8` | Pixels per module when `size` is omitted. |
+| `shape` | `"square" \| "circle"` | `"square"` | `"circle"` places the code inside a circle and fills the surrounding space with decorative modules in your dot style. The scannable code and its finder patterns are unchanged, and a 1-module gap is kept around them. The canvas grows to fit the circle; `margin` is applied outside it. |
 | `styling` | `DesignStyleOptions` | See below | Color and shape settings. |
-| `title` | `string` | — | `<title>` tag for accessibility. |
-| `desc` | `string` | — | `<desc>` tag for accessibility. |
+| `title` | `string` | - | `<title>` tag for accessibility. |
+| `desc` | `string` | - | `<desc>` tag for accessibility. |
 | `shapeRendering` | "auto", "geometricPrecision", "crispEdges", "optimizeSpeed" | `crispEdges`, or `geometricPrecision` when you choose non-square shapes. |
 
 ## Styling & design types
@@ -131,8 +132,16 @@ All styling primitives live in.
 | Type | Allowed values |
 | --- | --- |
 | `DotShapeType` | `"square"`, `"dot"`, `"rounded"`, `"extraRounded"`, `"classy"`, `"classyRounded"` |
-| `CornerSquareShapeType` | `"square"`, `"dot"`, `"rounded"` |
-| `CornerDotShapeType` | `"square"`, `"dot"` |
+| `CornerSquareShapeType` | `"square"`, `"dot"`, `"rounded"`, `"extraRounded"`, `"classy"`, `"classyRounded"` |
+| `CornerDotShapeType` | `"square"`, `"dot"`, `"rounded"`, `"extraRounded"`, `"classy"`, `"classyRounded"` |
+
+How shapes are drawn:
+
+- **Data modules** look at their four neighbors. `rounded` and `extraRounded` turn isolated modules into circles, line ends into half-pills, and round only the outer corners of a run so connected modules flow together. `classy` / `classyRounded` round the top-left and bottom-right edges of each run for a leaf-like look. `dot` draws every module as a circle.
+- **Finder patterns (eyes)** with `"dot"` are drawn as one shape: a circular ring for `cornerSquareOptions` and a single circle for `cornerDotOptions`. `cornerSquareOptions.style: "extraRounded"` draws one rounded-rectangle ring. Every other style draws the eye module-by-module using the same neighbor rules as the data modules.
+- Each group (data modules, eye rings, eye centers) is emitted as a single `<path>`, so adjacent modules render without anti-aliasing seams.
+
+Module and finder geometry is adapted from [qr-code-styling](https://github.com/kozakdenys/qr-code-styling) (MIT).
 
 ### `DesignStyleOptions`
 
@@ -163,13 +172,14 @@ interface ImageOptions {
   shape?: "square" | "rounded" | "circle"; // default "rounded"
   cornerRadius?: number;   // px radius for rounded squares
   backgroundColor?: HexColor; // defaults to #ffffff unless hideBackground
-  hideBackground?: boolean;   // skip drawing the padded backdrop
+  hideBackground?: boolean;   // skip drawing the padded backdrop (default false; true when hideBackgroundDots is false)
+  hideBackgroundDots?: boolean; // remove modules under the image (default true); false keeps them visible behind it
   opacity?: number;           // 0..1
   preserveAspectRatio?: string; // forwarded to the <image> tag
 }
 ```
 
-The renderer clears the safe-zone modules, draws the optional background shape, clips the image for rounded/circle shapes, and embeds the `<image>` element centered on the QR matrix. Example:
+The renderer clears the safe-zone modules (unless `hideBackgroundDots: false`, which keeps every module and lets it show behind the image, like qr-code-styling), draws the optional background shape, clips the image for rounded/circle shapes, and embeds the `<image>` element centered on the QR matrix. Example:
 
 ```ts
 const { svg } = generateQrCode("https://example.com", undefined, {
@@ -197,7 +207,7 @@ const { svg } = generateQrCode("https://example.com", undefined, {
 | `fileName` | `string` | `"qr-code"` | Automatically sanitized; extension appended as needed. |
 | `size` | `number` | Derived from SVG | Raster export width/height in pixels. |
 | `quality` | `0–1` | Browser default | Applies to JPG/WEBP. PNG ignores it. |
-| `vcardPayload` | `string` | — | Required when `format === "vcard"`. |
+| `vcardPayload` | `string` | - | Required when `format === "vcard"`. |
 | `autoDownload` | `boolean` | `true` | Controls whether an `<a download>` click is triggered. |
 | `canvas` | `HTMLCanvasElement` | `OffscreenCanvas, Auto-provisioned` | Provide one if you need to reuse a canvas context. |
 
