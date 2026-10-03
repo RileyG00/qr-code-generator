@@ -131,8 +131,16 @@ All styling primitives live in.
 | Type | Allowed values |
 | --- | --- |
 | `DotShapeType` | `"square"`, `"dot"`, `"rounded"`, `"extraRounded"`, `"classy"`, `"classyRounded"` |
-| `CornerSquareShapeType` | `"square"`, `"dot"`, `"rounded"` |
-| `CornerDotShapeType` | `"square"`, `"dot"` |
+| `CornerSquareShapeType` | `"square"`, `"dot"`, `"rounded"`, `"extraRounded"`, `"classy"`, `"classyRounded"` |
+| `CornerDotShapeType` | `"square"`, `"dot"`, `"rounded"`, `"extraRounded"`, `"classy"`, `"classyRounded"` |
+
+How shapes are drawn:
+
+- **Data modules** look at their four neighbors. `rounded` and `extraRounded` turn isolated modules into circles, line ends into half-pills, and round only the outer corners of a run so connected modules flow together. `classy` / `classyRounded` round the top-left and bottom-right edges of each run for a leaf-like look. `dot` draws every module as a circle.
+- **Finder patterns (eyes)** with `"dot"` are drawn as one shape: a circular ring for `cornerSquareOptions` and a single circle for `cornerDotOptions`. `cornerSquareOptions.style: "extraRounded"` draws one rounded-rectangle ring. Every other style draws the eye module-by-module using the same neighbor rules as the data modules.
+- Each group (data modules, eye rings, eye centers) is emitted as a single `<path>`, so adjacent modules render without anti-aliasing seams.
+
+Module and finder geometry is adapted from [qr-code-styling](https://github.com/kozakdenys/qr-code-styling) (MIT).
 
 ### `DesignStyleOptions`
 

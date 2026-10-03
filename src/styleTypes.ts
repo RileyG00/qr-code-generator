@@ -25,8 +25,20 @@ export type DotShapeType =
 	| ExtraRounded
 	| Classy
 	| ClassyRounded;
-export type CornerSquareShapeType = Square | Dot | Rounded;
-export type CornerDotShapeType = Square | Dot;
+export type CornerSquareShapeType =
+	| Square
+	| Dot
+	| Rounded
+	| ExtraRounded
+	| Classy
+	| ClassyRounded;
+export type CornerDotShapeType =
+	| Square
+	| Dot
+	| Rounded
+	| ExtraRounded
+	| Classy
+	| ClassyRounded;
 export const DEFAULT_DOT_STYLE: DotShapeType = "square";
 export const DEFAULT_CORNER_SQUARE_STYLE: CornerSquareShapeType = "square";
 export const DEFAULT_CORNER_DOT_STYLE: CornerDotShapeType = "square";
@@ -43,11 +55,11 @@ export type DotStyle = {
 };
 
 export type CornerSquareStyle = {
-	style?: Square | Dot | Rounded;
+	style?: CornerSquareShapeType;
 };
 
 export type CornerDotStyle = {
-	style?: Square | Dot;
+	style?: CornerDotShapeType;
 };
 
 export interface DotOptions extends ColorSettings, DotStyle {}

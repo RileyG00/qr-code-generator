@@ -45,7 +45,7 @@ describe("generateQrCode (matrix assembly)", () => {
 			`viewBox="0 0 ${expectedSize} ${expectedSize}"`,
 		);
 		expect(svg).toContain(`<rect width="${expectedSize}" height="${expectedSize}"`);
-		expect(svg).toMatch(/<rect x="/);
+		expect(svg).toMatch(/<path d="M /);
 	});
 
 	test("throws a descriptive error when input exceeds Version 40 capacity", () => {
