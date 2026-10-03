@@ -172,13 +172,14 @@ interface ImageOptions {
   shape?: "square" | "rounded" | "circle"; // default "rounded"
   cornerRadius?: number;   // px radius for rounded squares
   backgroundColor?: HexColor; // defaults to #ffffff unless hideBackground
-  hideBackground?: boolean;   // skip drawing the padded backdrop
+  hideBackground?: boolean;   // skip drawing the padded backdrop (default false; true when hideBackgroundDots is false)
+  hideBackgroundDots?: boolean; // remove modules under the image (default true); false keeps them visible behind it
   opacity?: number;           // 0..1
   preserveAspectRatio?: string; // forwarded to the <image> tag
 }
 ```
 
-The renderer clears the safe-zone modules, draws the optional background shape, clips the image for rounded/circle shapes, and embeds the `<image>` element centered on the QR matrix. Example:
+The renderer clears the safe-zone modules (unless `hideBackgroundDots: false`, which keeps every module and lets it show behind the image, like qr-code-styling), draws the optional background shape, clips the image for rounded/circle shapes, and embeds the `<image>` element centered on the QR matrix. Example:
 
 ```ts
 const { svg } = generateQrCode("https://example.com", undefined, {

@@ -41,6 +41,7 @@ export const writeTestSvg = (text: string = DEFAULT_TEXT): string => {
 		source: TEST_IMAGE,
 		shape: "circle",
 		hideBackground: true,
+		hideBackgroundDots: false,
 	};
 
 	const renderOptions: SvgRenderOptions = {

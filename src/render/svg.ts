@@ -112,9 +112,13 @@ interface ResolvedImageOverlay {
 		cornerRadius?: number;
 		shape: ImageShape;
 	};
-	safeZoneRect: { x: number; y: number; width: number; height: number };
+	// Modules whose centers fall inside are not drawn; absent when
+	// hideBackgroundDots is false.
+	safeZoneRect?: { x: number; y: number; width: number; height: number };
 	paddingModules: number;
 	safeZoneModules: number;
+	hideBackgroundDots: boolean;
+	hideBackground: boolean;
 	scale: number;
 	pixelSize: number;
 	shape: ImageShape;
@@ -510,6 +514,8 @@ export const renderSvg = (
 			pixelSize: imageOverlay.pixelSize,
 			safeZoneModules: imageOverlay.safeZoneModules,
 			paddingModules: imageOverlay.paddingModules,
+			hideBackgroundDots: imageOverlay.hideBackgroundDots,
+			hideBackground: imageOverlay.hideBackground,
 			shape: imageOverlay.shape,
 			cornerRadius: imageOverlay.cornerRadius,
 			backgroundColor: imageOverlay.backgroundColor,
@@ -894,7 +900,13 @@ const resolveImageOverlay = (
 	);
 	const opacity = sanitizeOpacity(options.opacity);
 
-	const shouldRenderBackground = options.hideBackground !== true;
+	// Mirrors qr-code-styling: modules under the image are removed unless
+	// explicitly kept, in which case they stay visible behind it.
+	const hideBackgroundDots = options.hideBackgroundDots !== false;
+	// Keeping the dots implies they should show through transparent parts
+	// of the image, so the plate defaults off in that case.
+	const hideBackground = options.hideBackground ?? !hideBackgroundDots;
+	const shouldRenderBackground = !hideBackground;
 	const backgroundColor = options.backgroundColor ?? "#ffffff";
 	const imageCornerRadius =
 		shape === "rounded"
@@ -939,14 +951,18 @@ const resolveImageOverlay = (
 					shape,
 				}
 			: undefined,
-		safeZoneRect: {
-			x: safeZoneX,
-			y: safeZoneY,
-			width: safeZoneWidth,
-			height: safeZoneWidth,
-		},
+		safeZoneRect: hideBackgroundDots
+			? {
+					x: safeZoneX,
+					y: safeZoneY,
+					width: safeZoneWidth,
+					height: safeZoneWidth,
+				}
+			: undefined,
 		paddingModules,
 		safeZoneModules,
+		hideBackgroundDots,
+		hideBackground,
 		scale: pixelSize / qrSpan,
 		pixelSize,
 		shape,

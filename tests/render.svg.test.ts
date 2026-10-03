@@ -337,6 +337,50 @@ describe("renderSvg", () => {
 
 		expect(svg).toContain('viewBox="0 0 210 210"');
 	});
+
+	test("hideBackgroundDots: false keeps modules behind the image and drops the plate", () => {
+		const matrix = buildMatrix(Array.from({ length: 5 }, () => [1, 1, 1, 1, 1]));
+		const imageOptions = {
+			source: "data:image/png;base64,AAA",
+			scale: 0.3,
+			paddingModules: 0.5,
+		};
+
+		const hidden = renderSvg(matrix, {
+			margin: 0,
+			moduleSize: 10,
+			styling: { imageOptions },
+		});
+		expect(hidden.svg).not.toContain("M 20 20 h 10 v 10 h -10 Z");
+		expect(hidden.styling.imageOptions?.hideBackgroundDots).toBe(true);
+		expect(hidden.styling.imageOptions?.hideBackground).toBe(false);
+
+		const kept = renderSvg(matrix, {
+			margin: 0,
+			moduleSize: 10,
+			styling: { imageOptions: { ...imageOptions, hideBackgroundDots: false } },
+		});
+		expect(kept.svg).toContain("M 20 20 h 10 v 10 h -10 Z");
+		expect(kept.svg).toContain("<image ");
+		expect(kept.svg).not.toMatch(/<rect x="12\.5"/);
+		expect(kept.styling.imageOptions?.hideBackgroundDots).toBe(false);
+		expect(kept.styling.imageOptions?.hideBackground).toBe(true);
+
+		// An explicit hideBackground still wins.
+		const keptWithPlate = renderSvg(matrix, {
+			margin: 0,
+			moduleSize: 10,
+			styling: {
+				imageOptions: {
+					...imageOptions,
+					hideBackgroundDots: false,
+					hideBackground: false,
+				},
+			},
+		});
+		expect(keptWithPlate.svg).toContain("M 20 20 h 10 v 10 h -10 Z");
+		expect(keptWithPlate.svg).toMatch(/<rect x="12\.5"/);
+	});
 });
 
 // 21x21 matrix containing only the three finder patterns.

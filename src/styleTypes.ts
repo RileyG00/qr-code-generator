@@ -86,7 +86,17 @@ export interface ImageOptions {
 	cornerRadius?: number;
 	backgroundColor?: HexColor;
 	opacity?: number;
+	/**
+	 * Skip the backing plate drawn behind the image. Defaults to false, or
+	 * to true when `hideBackgroundDots` is false.
+	 */
 	hideBackground?: boolean;
+	/**
+	 * Remove the QR modules covered by the image (plus `safeZoneModules`).
+	 * Set to false to keep them visible behind the image, as in
+	 * qr-code-styling. Defaults to true.
+	 */
+	hideBackgroundDots?: boolean;
 	preserveAspectRatio?: string;
 }
 export interface DesignStyleOptions {
